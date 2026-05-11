@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2 } from 'lucide-react';
+import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Empresa { id: string; nombre: string; }
@@ -30,6 +30,8 @@ const COLORS: Record<string, { bg: string; text: string; border: string; btn: st
 
 export default function GestionDocumentosPage() {
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
+  const [searchOrdenes, setSearchOrdenes] = useState('');
+  const [searchDocs, setSearchDocs] = useState('');
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +78,15 @@ export default function GestionDocumentosPage() {
       setDocs(Array.isArray(res.data) ? res.data : []);
     } catch { setDocs([]); } finally { setLoadingDocs(false); }
   };
+
+  const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
+  const filteredOrdenes = ordenes.filter(o =>
+    o.numero_orden.toLowerCase().includes(searchOrdenes.toLowerCase()) ||
+    o.empresa?.nombre.toLowerCase().includes(searchOrdenes.toLowerCase())
+  );
+  const filteredDocs = (tipo: string) => docsByTipo(tipo).filter(d =>
+    d.nombre.toLowerCase().includes(searchDocs.toLowerCase())
+  );
 
   const handleCreateOrden = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,8 +141,6 @@ export default function GestionDocumentosPage() {
     } finally { setLinking(false); }
   };
 
-  const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
-
   // ── Vista: Detalle de carpeta ───────────────────────────────────────────────
   if (openOrden) {
     return (
@@ -146,6 +155,26 @@ export default function GestionDocumentosPage() {
           {openOrden.empresa && <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{openOrden.empresa.nombre}</span>}
         </div>
 
+        {/* Buscador de documentos */}
+        <div className="mb-6 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Buscar documento en esta carpeta..."
+            value={searchDocs}
+            onChange={(e) => setSearchDocs(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          />
+          {searchDocs && (
+            <button
+              onClick={() => setSearchDocs('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         {loadingDocs ? (
           <p className="text-slate-400 text-center py-10">Cargando...</p>
         ) : (
@@ -153,7 +182,7 @@ export default function GestionDocumentosPage() {
             {(['certificado', 'orden_compra', 'remito'] as const).map(tipo => {
               const color = TIPO_COLOR[tipo];
               const c = COLORS[color];
-              const items = docsByTipo(tipo);
+              const items = filteredDocs(tipo);
               return (
                 <div key={tipo} className={`border rounded-2xl p-5 ${c.border} ${c.bg}`}>
                   <div className="flex items-center justify-between mb-4">
@@ -257,40 +286,69 @@ export default function GestionDocumentosPage() {
 
       {loading ? (
         <p className="text-center text-slate-400 py-10">Cargando...</p>
-      ) : ordenes.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <Folder className="h-14 w-14 text-slate-200" />
-          <p className="text-slate-400 text-sm">No hay carpetas. Crea una Orden de Compra.</p>
-        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ordenes.map(orden => (
-            <div key={orden.id}
-              onClick={() => openFolder(orden)}
-              className="group relative bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
-              <div className="flex items-start gap-3">
-                <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 truncate">{orden.numero_orden}</p>
-                  {orden.empresa && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <Building2 className="h-3 w-3 text-slate-400" />
-                      <p className="text-xs text-slate-500 truncate">{orden.empresa.nombre}</p>
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-400 mt-1">{new Date(orden.created_at).toLocaleDateString('es-AR')}</p>
-                </div>
-                <button onClick={e => handleDeleteOrden(orden.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+        <>
+          {/* Buscador de carpetas - siempre visible */}
+          <div className="mb-6 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar carpeta por número o empresa..."
+              value={searchOrdenes}
+              onChange={(e) => setSearchOrdenes(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            />
+            {searchOrdenes && (
+              <button
+                onClick={() => setSearchOrdenes('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Resultados */}
+          {ordenes.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <Folder className="h-14 w-14 text-slate-200" />
+              <p className="text-slate-400 text-sm">No hay carpetas. Crea una Orden de Compra.</p>
             </div>
-          ))}
-        </div>
+          ) : filteredOrdenes.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <Folder className="h-14 w-14 text-slate-200" />
+              <p className="text-slate-400 text-sm">No hay carpetas que coincidan con tu búsqueda.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredOrdenes.map(orden => (
+                <div key={orden.id} onClick={() => openFolder(orden)}
+                  className="group relative bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
+                  <div className="flex items-start gap-3">
+                    <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 truncate">{orden.numero_orden}</p>
+                      {orden.empresa && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Building2 className="h-3 w-3 text-slate-400" />
+                          <p className="text-xs text-slate-500 truncate">{orden.empresa.nombre}</p>
+                        </div>
+                      )}
+                      <p className="text-xs text-slate-400 mt-1">{new Date(orden.created_at).toLocaleDateString('es-AR')}</p>
+                    </div>
+                    <button onClick={e => handleDeleteOrden(orden.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Modal: Nueva Orden */}
+      {/* Modal: Nueva OC */}
       {showNewOrden && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowNewOrden(false)} />

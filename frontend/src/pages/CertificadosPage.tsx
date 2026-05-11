@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, FileText, FolderOpen } from 'lucide-react';
+import { Upload, Trash2, FileText, FolderOpen, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Certificado {
@@ -28,6 +28,7 @@ const accentClasses: Record<string, { tab: string; btn: string; icon: string; em
 export default function CertificadosPage() {
   const [activeSection, setActiveSection] = useState<SeccionKey>('certificados');
   const [items, setItems] = useState<Certificado[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -38,6 +39,9 @@ export default function CertificadosPage() {
 
   const seccion = SECCIONES.find(s => s.key === activeSection)!;
   const ac = accentClasses[seccion.color];
+  const filteredItems = items.filter(item => 
+    item.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const fetchItems = async () => {
     setLoading(true);
@@ -132,14 +136,36 @@ export default function CertificadosPage() {
         <div className="flex-1 flex items-center justify-center">
           <p className="text-slate-400">Cargando...</p>
         </div>
-      ) : items.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-          <FolderOpen className={`h-14 w-14 ${ac.empty}`} />
-          <p className="text-slate-400 text-sm">No hay archivos en esta seccion.</p>
-        </div>
       ) : (
-        <ul className="space-y-2 overflow-y-auto">
-          {items.map(item => (
+        <>
+          {/* Search bar */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar archivo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {filteredItems.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+              <FolderOpen className={`h-14 w-14 ${ac.empty}`} />
+              <p className="text-slate-400 text-sm">{searchQuery ? 'No hay archivos que coincidan con tu búsqueda.' : 'No hay archivos en esta seccion.'}</p>
+            </div>
+          ) : (
+            <ul className="space-y-2 overflow-y-auto">
+              {filteredItems.map(item => (
             <li key={item.id} className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
               <div className={`p-2 rounded-lg ${ac.icon}`}>
                 <FileText className="h-5 w-5" />
@@ -169,8 +195,10 @@ export default function CertificadosPage() {
                 </button>
               </div>
             </li>
-          ))}
-        </ul>
+              ))}  
+            </ul>
+          )}
+        </>
       )}
 
       {/* Upload modal */}
