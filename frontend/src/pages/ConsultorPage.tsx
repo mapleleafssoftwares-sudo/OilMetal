@@ -65,22 +65,24 @@ export default function ConsultorPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+      <header className="bg-slate-900 shadow-lg">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="OilMetal" className="h-12 w-auto object-contain" />
+            <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <img src="/logo.png" alt="OilMetal" className="h-7 w-auto object-contain" />
+            </div>
             <div>
-              <h1 className="text-base font-bold text-slate-900 leading-tight">Portal de Documentos</h1>
+              <h1 className="text-base font-bold text-white leading-tight">Portal de Documentos</h1>
               {user?.empresa_id && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <Building2 className="h-3 w-3 text-slate-400" />
-                  <p className="text-xs text-slate-500">{user.nombre || user.email}</p>
+                  <p className="text-xs text-slate-400">{user.nombre || user.email}</p>
                 </div>
               )}
             </div>
           </div>
           <button onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
             <LogOut className="h-4 w-4" /> Salir
           </button>
         </div>
