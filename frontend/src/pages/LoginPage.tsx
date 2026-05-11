@@ -104,7 +104,9 @@ export default function LoginPage() {
 
         {/* Logo pequeño visible solo en móvil */}
         <div className="lg:hidden mb-8">
-          <img src="/logo.png" alt="OilMetal" className="w-24 h-24 object-contain mx-auto" />
+          <div className="w-24 h-24 rounded-2xl bg-slate-900 flex items-center justify-center mx-auto shadow-lg">
+            <img src="/logo.png" alt="OilMetal" className="w-16 h-16 object-contain" />
+          </div>
         </div>
 
         <div className="w-full max-w-md">
