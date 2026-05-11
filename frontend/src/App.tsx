@@ -20,7 +20,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
 // Root route: redirect admins to /admin, consultors stay at /
 const RootRoute = () => {
   const { user } = useAuthStore();
-  if (user?.rol === 'admin') return <Navigate to="/admin" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.rol === 'admin') return <Navigate to="/admin" replace />;
   return <ConsultorPage />;
 };
 

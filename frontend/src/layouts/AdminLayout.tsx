@@ -77,12 +77,15 @@ export default function AdminLayout() {
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 shadow-sm relative z-20">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">
-              {location.pathname.includes('/certificados') ? 'Repositorio de PDFs' 
+              {location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
+                : location.pathname.includes('/gestion') ? 'Gestión de Documentos'
                 : 'Gestión de Usuarios'}
             </h2>
             <p className="text-sm text-slate-500">
-              {location.pathname.includes('/certificados') 
-                ? 'Sube y administra los archivos PDF del sistema.' 
+              {location.pathname.includes('/certificados')
+                ? 'Sube y administra los archivos PDF del sistema.'
+                : location.pathname.includes('/gestion')
+                ? 'Administra las carpetas y documentos por Orden de Compra.'
                 : 'Administra los usuarios y roles del sistema.'}
             </p>
           </div>
