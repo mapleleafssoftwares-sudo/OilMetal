@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
-interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; }
+interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; __link_created_at?: string; }
 
 const TIPO_LABEL: Record<string, string> = {
   certificado: 'Certificaciones',
@@ -156,7 +156,7 @@ export default function ConsultorPage() {
                                   <span className="text-xs text-slate-400">Sin archivo</span>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-400 pl-7">Última revisión: {new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                                <p className="text-xs text-slate-400 pl-7">Última revisión: {doc.__link_created_at ? new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</p>
                             </li>
                           ))}
                         </ul>
