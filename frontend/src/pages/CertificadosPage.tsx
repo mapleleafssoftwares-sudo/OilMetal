@@ -76,11 +76,15 @@ export default function CertificadosPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
+    if (!uploadDesc.trim()) {
+      alert('Por favor ingresa un nombre para el archivo');
+      return;
+    }
     setUploading(true);
     const fd = new FormData();
     fd.append('file', uploadFile);
     fd.append('seccion', seccion.key);
-    fd.append('nombre', uploadFile.name.replace(/\.pdf$/i, ''));
+    fd.append('nombre', uploadDesc.trim());
     try {
       await api.post('/certificados/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       closeUploadModal();
@@ -192,7 +196,7 @@ export default function CertificadosPage() {
                 <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => setUploadFile(e.target.files?.[0] || null)} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Descripcion (opcional)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nombre del archivo *</label>
                 <input type="text" value={uploadDesc} onChange={e => setUploadDesc(e.target.value)} placeholder="Ej: Certificado ISO 2024"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
               </div>
@@ -201,7 +205,7 @@ export default function CertificadosPage() {
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" disabled={!uploadFile || uploading}
+                <button type="submit" disabled={!uploadFile || !uploadDesc.trim() || uploading}
                   className={`flex-1 px-4 py-2.5 text-white font-semibold rounded-xl shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 ${ac.btn}`}>
                   {uploading
                     ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Subiendo...</>
