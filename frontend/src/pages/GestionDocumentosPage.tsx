@@ -4,7 +4,7 @@ import { api } from '../services/api';
 
 interface Empresa { id: string; nombre: string; }
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
-interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; }
+interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; __link_created_at?: string; }
 interface RepoDoc { id: string; nombre: string; archivo_url: string; }
 
 const TIPO_LABEL: Record<string, string> = {
@@ -212,7 +212,7 @@ export default function GestionDocumentosPage() {
                               <X className="h-4 w-4" />
                             </button>
                           </div>
-                          <p className="text-xs text-slate-400 pl-7">Última revisión: {new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                          <p className="text-xs text-slate-400 pl-7">Última revisión: {doc.__link_created_at ? new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</p>
                         </li>
                       ))}
                     </ul>
