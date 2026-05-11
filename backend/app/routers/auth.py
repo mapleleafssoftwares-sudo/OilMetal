@@ -74,6 +74,7 @@ def get_current_admin(current_user: UserProfile = Depends(get_current_user)) -> 
 def list_usuarios(current_user: UserProfile = Depends(get_current_admin)):
     """Lista todos los perfiles de usuario con su rol."""
     supabase = get_supabase_client()
+    supabase.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
     res = supabase.table("perfiles").select("*, empresa:empresas(id, nombre)").execute()
     return res.data
 
@@ -100,7 +101,11 @@ def update_usuario(user_id: str, body: UserUpdateRequest, current_user: UserProf
     if not patch:
         raise HTTPException(status_code=400, detail="Nada que actualizar.")
     try:
+        # Force service role key on PostgREST to avoid gotrue session state
+        # overriding the auth header with a user JWT (same issue as in create_usuario)
+        supabase_admin.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
         supabase_admin.table("perfiles").update(patch).eq("id", user_id).execute()
+        supabase_admin.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
         res = supabase_admin.table("perfiles").select("*, empresa:empresas(id, nombre)").eq("id", user_id).execute()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
