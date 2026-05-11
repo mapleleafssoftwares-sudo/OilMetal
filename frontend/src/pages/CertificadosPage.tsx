@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, FileText, FolderOpen } from 'lucide-react';
+import { Upload, Trash2, FileText, FolderOpen, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Certificado {
@@ -28,6 +28,7 @@ const accentClasses: Record<string, { tab: string; btn: string; icon: string; em
 export default function CertificadosPage() {
   const [activeSection, setActiveSection] = useState<SeccionKey>('certificados');
   const [items, setItems] = useState<Certificado[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -38,6 +39,9 @@ export default function CertificadosPage() {
 
   const seccion = SECCIONES.find(s => s.key === activeSection)!;
   const ac = accentClasses[seccion.color];
+  const filteredItems = items.filter(item => 
+    item.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const fetchItems = async () => {
     setLoading(true);
@@ -76,11 +80,15 @@ export default function CertificadosPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
+    if (!uploadDesc.trim()) {
+      alert('Por favor ingresa un nombre para el archivo');
+      return;
+    }
     setUploading(true);
     const fd = new FormData();
     fd.append('file', uploadFile);
     fd.append('seccion', seccion.key);
-    fd.append('nombre', uploadFile.name.replace(/\.pdf$/i, ''));
+    fd.append('nombre', uploadDesc.trim());
     try {
       await api.post('/certificados/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       closeUploadModal();
@@ -128,14 +136,36 @@ export default function CertificadosPage() {
         <div className="flex-1 flex items-center justify-center">
           <p className="text-slate-400">Cargando...</p>
         </div>
-      ) : items.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-          <FolderOpen className={`h-14 w-14 ${ac.empty}`} />
-          <p className="text-slate-400 text-sm">No hay archivos en esta seccion.</p>
-        </div>
       ) : (
-        <ul className="space-y-2 overflow-y-auto">
-          {items.map(item => (
+        <>
+          {/* Search bar */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar archivo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {filteredItems.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+              <FolderOpen className={`h-14 w-14 ${ac.empty}`} />
+              <p className="text-slate-400 text-sm">{searchQuery ? 'No hay archivos que coincidan con tu búsqueda.' : 'No hay archivos en esta seccion.'}</p>
+            </div>
+          ) : (
+            <ul className="space-y-2 overflow-y-auto">
+              {filteredItems.map(item => (
             <li key={item.id} className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
               <div className={`p-2 rounded-lg ${ac.icon}`}>
                 <FileText className="h-5 w-5" />
@@ -143,7 +173,7 @@ export default function CertificadosPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{item.nombre}</p>
                 {item.colada && <p className="text-xs text-slate-500 truncate">Colada: {item.colada}</p>}
-                <p className="text-xs text-slate-400">{new Date(item.created_at).toLocaleDateString('es-AR')}</p>
+                <p className="text-xs text-slate-400">Cargado: {new Date(item.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
               </div>
               <div className="flex items-center gap-2">
                 <a
@@ -165,8 +195,10 @@ export default function CertificadosPage() {
                 </button>
               </div>
             </li>
-          ))}
-        </ul>
+              ))}  
+            </ul>
+          )}
+        </>
       )}
 
       {/* Upload modal */}
@@ -192,7 +224,7 @@ export default function CertificadosPage() {
                 <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => setUploadFile(e.target.files?.[0] || null)} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Descripcion (opcional)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nombre del archivo *</label>
                 <input type="text" value={uploadDesc} onChange={e => setUploadDesc(e.target.value)} placeholder="Ej: Certificado ISO 2024"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
               </div>
@@ -201,7 +233,7 @@ export default function CertificadosPage() {
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" disabled={!uploadFile || uploading}
+                <button type="submit" disabled={!uploadFile || !uploadDesc.trim() || uploading}
                   className={`flex-1 px-4 py-2.5 text-white font-semibold rounded-xl shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 ${ac.btn}`}>
                   {uploading
                     ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Subiendo...</>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2 } from 'lucide-react';
+import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -20,6 +20,8 @@ const TIPO_COLOR: Record<string, { bg: string; text: string; border: string; ico
 
 export default function ConsultorPage() {
   const [ordenes, setOrdenes]       = useState<Orden[]>([]);
+  const [searchOrdenes, setSearchOrdenes] = useState('');
+  const [searchDocs, setSearchDocs] = useState('');
   const [loading, setLoading]       = useState(true);
   const [openOrden, setOpenOrden]   = useState<Orden | null>(null);
   const [docs, setDocs]             = useState<Documento[]>([]);
@@ -52,6 +54,13 @@ export default function ConsultorPage() {
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
+  const filteredOrdenes = ordenes.filter(o => 
+    o.numero_orden.toLowerCase().includes(searchOrdenes.toLowerCase()) ||
+    o.empresa?.nombre.toLowerCase().includes(searchOrdenes.toLowerCase())
+  );
+  const filteredDocs = (tipo: string) => docsByTipo(tipo).filter(d =>
+    d.nombre.toLowerCase().includes(searchDocs.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -95,13 +104,37 @@ export default function ConsultorPage() {
               )}
             </div>
 
+            {/* Buscador de documentos dentro de carpeta */}
+            <div className="mb-6 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar documento en esta carpeta..."
+                value={searchDocs}
+                onChange={(e) => setSearchDocs(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              {searchDocs && (
+                <button
+                  onClick={() => setSearchDocs('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
             {loadingDocs ? (
               <p className="text-center text-slate-400 py-16">Cargando documentos...</p>
+            ) : docsByTipo('certificado').length === 0 && docsByTipo('orden_compra').length === 0 && docsByTipo('remito').length === 0 ? (
+              <p className="text-center text-slate-400 py-16">Sin documentos en esta carpeta.</p>
+            ) : filteredDocs('certificado').length === 0 && filteredDocs('orden_compra').length === 0 && filteredDocs('remito').length === 0 ? (
+              <p className="text-center text-slate-400 py-8">No hay documentos que coincidan con tu búsqueda.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {(['certificado', 'orden_compra', 'remito'] as const).map(tipo => {
                   const c = TIPO_COLOR[tipo];
-                  const items = docsByTipo(tipo);
+                  const items = filteredDocs(tipo);
                   return (
                     <div key={tipo} className={`border rounded-2xl p-5 ${c.border} ${c.bg}`}>
                       <h3 className={`font-bold text-sm mb-4 ${c.text}`}>{TIPO_LABEL[tipo]}</h3>
@@ -110,17 +143,20 @@ export default function ConsultorPage() {
                       ) : (
                         <ul className="space-y-2">
                           {items.map(doc => (
-                            <li key={doc.__link_id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
-                              <FileText className={`h-4 w-4 flex-shrink-0 ${c.icon}`} />
-                              <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
-                              {doc.archivo_url ? (
-                                <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors">
-                                  <ExternalLink className="h-3 w-3" /> Ver PDF
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400">Sin archivo</span>
-                              )}
+                            <li key={doc.__link_id} className="flex flex-col gap-2 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <FileText className={`h-4 w-4 flex-shrink-0 ${c.icon}`} />
+                                <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
+                                {doc.archivo_url ? (
+                                  <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors">
+                                    <ExternalLink className="h-3 w-3" /> Ver PDF
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-400">Sin archivo</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-400 pl-7">Última revisión: {new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                             </li>
                           ))}
                         </ul>
@@ -152,36 +188,66 @@ export default function ConsultorPage() {
                 <p className="font-semibold text-slate-500">Tu cuenta no tiene una empresa asignada.</p>
                 <p className="text-sm text-slate-400 mt-1">Contactá con el administrador del sistema.</p>
               </div>
-            ) : ordenes.length === 0 ? (
-              <div className="text-center py-20">
-                <Folder className="h-12 w-12 mx-auto mb-4 text-slate-200" />
-                <p className="font-semibold text-slate-500">No hay carpetas disponibles.</p>
-                <p className="text-sm text-slate-400 mt-1">El administrador aún no creó carpetas para tu empresa.</p>
-              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ordenes.map(orden => (
-                  <button key={orden.id} onClick={() => openFolder(orden)}
-                    className="group text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
-                    <div className="flex items-start gap-3">
-                      <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-900 truncate">{orden.numero_orden}</p>
-                        {orden.empresa && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Building2 className="h-3 w-3 text-slate-400" />
-                            <p className="text-xs text-slate-500 truncate">{orden.empresa.nombre}</p>
-                          </div>
-                        )}
-                        <p className="text-xs text-slate-400 mt-1">
-                          {new Date(orden.created_at).toLocaleDateString('es-AR')}
-                        </p>
+              <>
+                {/* Buscador de carpetas - siempre visible */}
+                <div className="mb-6 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar carpeta por número o empresa..."
+                    value={searchOrdenes}
+                    onChange={(e) => setSearchOrdenes(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                  {searchOrdenes && (
+                    <button
+                      onClick={() => setSearchOrdenes('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Resultados */}
+                {ordenes.length === 0 ? (
+                  <div className="text-center py-20">
+                    <Folder className="h-12 w-12 mx-auto mb-4 text-slate-200" />
+                    <p className="font-semibold text-slate-500">No hay carpetas disponibles.</p>
+                    <p className="text-sm text-slate-400 mt-1">El administrador aún no creó carpetas para tu empresa.</p>
+                  </div>
+                ) : filteredOrdenes.length === 0 ? (
+                  <div className="text-center py-20">
+                    <Folder className="h-12 w-12 mx-auto mb-4 text-slate-200" />
+                    <p className="font-semibold text-slate-500">No hay carpetas que coincidan con tu búsqueda.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredOrdenes.map(orden => (
+                    <button key={orden.id} onClick={() => openFolder(orden)}
+                      className="group text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
+                      <div className="flex items-start gap-3">
+                        <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 truncate">{orden.numero_orden}</p>
+                          {orden.empresa && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Building2 className="h-3 w-3 text-slate-400" />
+                              <p className="text-xs text-slate-500 truncate">{orden.empresa.nombre}</p>
+                            </div>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1">
+                            {new Date(orden.created_at).toLocaleDateString('es-AR')}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-400 transition-colors mt-1" />
                       </div>
-                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-400 transition-colors mt-1" />
-                    </div>
-                  </button>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
+                )}
+              </>
             )}
           </>
         )}
