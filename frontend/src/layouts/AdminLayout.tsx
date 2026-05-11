@@ -146,19 +146,14 @@ export default function AdminLayout() {
       {/* ── Main Content Area ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
 
-        {/* Top Header */}
-        <header className="h-14 md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm relative z-20">
-          {/* Hamburger (solo móvil) */}
-          <button
-            className="md:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+        {/* Mobile Dynamic Island spacer — only on phones */}
+        <div className="md:hidden safe-area-pt" />
 
-          <div className="flex-1 md:flex-none mx-3 md:mx-0">
-            <h2 className="text-base md:text-2xl font-bold text-slate-800 leading-tight">{pageTitle}</h2>
-            <p className="hidden md:block text-sm text-slate-500">{pageSubtitle}</p>
+        {/* Top Header — desktop only */}
+        <header className="hidden md:flex md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 items-center justify-between px-8 shadow-sm relative z-20">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 leading-tight">{pageTitle}</h2>
+            <p className="text-sm text-slate-500">{pageSubtitle}</p>
           </div>
         </header>
 
@@ -167,8 +162,8 @@ export default function AdminLayout() {
           <Outlet />
         </div>
 
-        {/* ── Bottom Nav (solo móvil) ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 safe-area-pb">
+        {/* ── Bottom Nav (solo móvil) — azul con logout ── */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-blue-800 safe-area-pb">
           <div className="flex">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -178,7 +173,7 @@ export default function AdminLayout() {
                   key={item.path}
                   to={item.path}
                   className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
-                    isActive ? 'text-blue-600' : 'text-slate-400'
+                    isActive ? 'text-white' : 'text-blue-300 hover:text-blue-100'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -190,6 +185,13 @@ export default function AdminLayout() {
                 </Link>
               );
             })}
+            <button
+              onClick={handleLogout}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-blue-300 hover:text-white transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-tight">Salir</span>
+            </button>
           </div>
         </nav>
       </main>
