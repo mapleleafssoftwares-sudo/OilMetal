@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Bell, LayoutDashboard, Settings, FileText
+  LogOut, Settings, FileText, FolderOpen
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -15,9 +15,9 @@ export default function AdminLayout() {
   };
 
   const navItems = [
-    { name: 'Mapeo de Productos', path: '/admin/mapeo', icon: LayoutDashboard },
     { name: 'Repositorio PDFs', path: '/admin/certificados', icon: FileText },
-    { name: 'Configuración', path: '/admin/configuracion', icon: Settings },
+    { name: 'Gestión de Documentos', path: '/admin/gestion', icon: FolderOpen },
+    { name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings },
   ];
 
   return (
@@ -77,23 +77,16 @@ export default function AdminLayout() {
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 shadow-sm relative z-20">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">
-              {location.pathname.includes('/certificados') ? 'Repositorio de Certificados' 
-                : location.pathname.includes('/configuracion') ? 'Configuración'
-                : 'Centro de Mapeo'}
+              {location.pathname.includes('/certificados') ? 'Repositorio de PDFs' 
+                : 'Gestión de Usuarios'}
             </h2>
             <p className="text-sm text-slate-500">
               {location.pathname.includes('/certificados') 
                 ? 'Sube y administra los archivos PDF del sistema.' 
-                : location.pathname.includes('/configuracion')
-                ? 'Gestiona las categorías y ajustes del sistema.'
-                : 'Administra la relación entre productos y certificados PDF.'}
+                : 'Administra los usuarios y roles del sistema.'}
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-            </button>
           </div>
         </header>
 

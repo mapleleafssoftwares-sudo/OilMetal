@@ -5,6 +5,7 @@ interface User {
   email: string;
   rol: 'admin' | 'consultor';
   nombre?: string;
+  empresa_id?: string;
 }
 
 interface AuthState {

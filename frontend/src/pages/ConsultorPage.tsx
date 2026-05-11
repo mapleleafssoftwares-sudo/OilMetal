@@ -1,232 +1,190 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Download, LogIn, LogOut } from 'lucide-react';
+import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2 } from 'lucide-react';
 import { api } from '../services/api';
-import { Producto } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
 
+interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
+interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; }
+
+const TIPO_LABEL: Record<string, string> = {
+  certificado: 'Certificaciones',
+  orden_compra: 'Ordenes de Compra',
+  remito: 'Remitos',
+};
+const TIPO_COLOR: Record<string, { bg: string; text: string; border: string; icon: string }> = {
+  certificado: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', icon: 'text-purple-500' },
+  orden_compra: { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   icon: 'text-blue-500' },
+  remito:       { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'text-emerald-500' },
+};
+
 export default function ConsultorPage() {
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchDesc, setSearchDesc] = useState('');
-  const [categoriaFilter, setCategoriaFilter] = useState('Todas');
-  const [certFilter, setCertFilter] = useState('');
-  const [categorias, setCategorias] = useState<string[]>([]);
+  const [ordenes, setOrdenes]       = useState<Orden[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [openOrden, setOpenOrden]   = useState<Orden | null>(null);
+  const [docs, setDocs]             = useState<Documento[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
   useEffect(() => {
-    api.get('/categorias').then(res => {
-      setCategorias(res.data.map((c: { nombre: string }) => c.nombre));
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const fetchProductos = async () => {
+    const fetchOrdenes = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/productos', { params: { search: searchTerm, categoria: categoriaFilter } });
-        setProductos(res.data);
-      } catch (error) {
-        console.error('Error fetching productos:', error);
-      } finally {
-        setLoading(false);
-      }
+        const res = await api.get('/empresas/ordenes');
+        setOrdenes(Array.isArray(res.data) ? res.data : []);
+      } catch { setOrdenes([]); }
+      finally { setLoading(false); }
     };
-    const timeoutId = setTimeout(fetchProductos, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, categoriaFilter]);
+    fetchOrdenes();
+  }, []);
 
-  // Certificados únicos presentes en los productos cargados
-  const certNames = useMemo(() => {
-    const names = new Set<string>();
-    productos.forEach(p => p.certificados?.forEach(c => names.add(c.nombre)));
-    return Array.from(names).sort();
-  }, [productos]);
-
-  // Filtros client-side: descripción y certificado
-  const filteredProductos = useMemo(() => {
-    let list = productos;
-    if (searchDesc.trim()) {
-      const q = searchDesc.trim().toLowerCase();
-      list = list.filter(p => (p.descripcion || '').toLowerCase().includes(q));
-    }
-    if (certFilter) {
-      list = list.filter(p => p.certificados?.some(c => c.nombre === certFilter));
-    }
-    return list;
-  }, [productos, searchDesc, certFilter]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const openFolder = async (orden: Orden) => {
+    setOpenOrden(orden);
+    setLoadingDocs(true);
+    try {
+      const res = await api.get(`/empresas/ordenes/${orden.id}/documentos`);
+      setDocs(Array.isArray(res.data) ? res.data : []);
+    } catch { setDocs([]); }
+    finally { setLoadingDocs(false); }
   };
 
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
-          {/* Logo + título */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Oil Metal" className="h-10 w-auto object-contain" />
+            <img src="/logo.png" alt="OilMetal" className="h-12 w-auto object-contain" />
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">Buscador de Certificados</h1>
-              <p className="text-xs text-gray-400">Certificaciones Oil Metal</p>
+              <h1 className="text-base font-bold text-slate-900 leading-tight">Portal de Documentos</h1>
+              {user?.empresa_id && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Building2 className="h-3 w-3 text-slate-400" />
+                  <p className="text-xs text-slate-500">{user.nombre || user.email}</p>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Usuario + botón */}
-          <div className="flex items-center gap-3">
-            {user && (
-              <span className="text-sm text-gray-600 hidden sm:block">
-                Bienvenido, <span className="font-semibold text-gray-800">{user.nombre || user.email}</span>
-              </span>
-            )}
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Log out
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-              >
-                <LogIn className="h-4 w-4" />
-                Acceder
-              </button>
-            )}
-          </div>
+          <button onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+            <LogOut className="h-4 w-4" /> Salir
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
 
-        {/* Filtros */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Búsqueda por código */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              className="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Buscar por código..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+        {/* ── Vista detalle de carpeta ── */}
+        {openOrden ? (
+          <>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 mb-6">
+              <button onClick={() => setOpenOrden(null)}
+                className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium transition-colors">
+                <Folder className="h-4 w-4" /> Mis carpetas
+              </button>
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-bold text-slate-800">{openOrden.numero_orden}</span>
+              {openOrden.empresa && (
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{openOrden.empresa.nombre}</span>
+              )}
+            </div>
 
-          {/* Búsqueda por descripción */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              className="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Buscar por descripción..."
-              value={searchDesc}
-              onChange={(e) => setSearchDesc(e.target.value)}
-            />
-          </div>
-
-          {/* Filtro categoría */}
-          <select
-            value={categoriaFilter}
-            onChange={(e) => setCategoriaFilter(e.target.value)}
-            className="block w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="Todas">Todas las categorías</option>
-            {categorias.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-
-          {/* Filtro certificado */}
-          <select
-            value={certFilter}
-            onChange={(e) => setCertFilter(e.target.value)}
-            className="block w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos los certificados</option>
-            {certNames.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Contador */}
-        <p className="text-xs text-gray-400 mb-3 ml-1">
-          {filteredProductos.length} resultado{filteredProductos.length !== 1 ? 's' : ''}
-          {(searchDesc || certFilter) ? ' (filtros aplicados)' : ''}
-        </p>
-
-        {/* Table */}
-        <div className="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Código</th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Descripción</th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Categoría</th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Partida / Lote</th>
-                  <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Certificado</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">Cargando productos...</td></tr>
-                ) : filteredProductos.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">No se encontraron productos.</td></tr>
-                ) : (
-                  filteredProductos.map((producto) => (
-                    <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{producto.nombre}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-md truncate">{producto.descripcion || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md font-medium text-xs">
-                          {producto.categoria || 'Otros'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{producto.partida_lote || '-'}</td>
-                      <td className="px-6 py-4 text-center text-sm font-medium">
-                        {producto.certificados && producto.certificados.length > 0 ? (
-                          <div className="flex flex-col items-center gap-1.5">
-                            {producto.certificados.map(cert => (
-                              cert.archivo_url ? (
-                                <a
-                                  key={cert.id}
-                                  href={cert.archivo_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors max-w-[180px]"
-                                  title={cert.nombre}
-                                >
-                                  <Download className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                                  <span className="truncate">{cert.nombre}</span>
+            {loadingDocs ? (
+              <p className="text-center text-slate-400 py-16">Cargando documentos...</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {(['certificado', 'orden_compra', 'remito'] as const).map(tipo => {
+                  const c = TIPO_COLOR[tipo];
+                  const items = docsByTipo(tipo);
+                  return (
+                    <div key={tipo} className={`border rounded-2xl p-5 ${c.border} ${c.bg}`}>
+                      <h3 className={`font-bold text-sm mb-4 ${c.text}`}>{TIPO_LABEL[tipo]}</h3>
+                      {items.length === 0 ? (
+                        <p className={`text-xs ${c.text} opacity-60`}>Sin documentos en esta sección.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {items.map(doc => (
+                            <li key={doc.__link_id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
+                              <FileText className={`h-4 w-4 flex-shrink-0 ${c.icon}`} />
+                              <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
+                              {doc.archivo_url ? (
+                                <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors">
+                                  <ExternalLink className="h-3 w-3" /> Ver PDF
                                 </a>
-                              ) : null
-                            ))}
+                              ) : (
+                                <span className="text-xs text-slate-400">Sin archivo</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Header de la sección */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2.5 bg-amber-50 rounded-xl">
+                <FolderOpen className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">Mis Carpetas</h2>
+                <p className="text-xs text-slate-500">Documentos asignados a tu empresa</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <p className="text-center text-slate-400 py-16">Cargando carpetas...</p>
+            ) : !user?.empresa_id ? (
+              <div className="text-center py-20">
+                <Building2 className="h-12 w-12 mx-auto mb-4 text-slate-200" />
+                <p className="font-semibold text-slate-500">Tu cuenta no tiene una empresa asignada.</p>
+                <p className="text-sm text-slate-400 mt-1">Contactá con el administrador del sistema.</p>
+              </div>
+            ) : ordenes.length === 0 ? (
+              <div className="text-center py-20">
+                <Folder className="h-12 w-12 mx-auto mb-4 text-slate-200" />
+                <p className="font-semibold text-slate-500">No hay carpetas disponibles.</p>
+                <p className="text-sm text-slate-400 mt-1">El administrador aún no creó carpetas para tu empresa.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ordenes.map(orden => (
+                  <button key={orden.id} onClick={() => openFolder(orden)}
+                    className="group text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
+                    <div className="flex items-start gap-3">
+                      <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{orden.numero_orden}</p>
+                        {orden.empresa && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Building2 className="h-3 w-3 text-slate-400" />
+                            <p className="text-xs text-slate-500 truncate">{orden.empresa.nombre}</p>
                           </div>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-400">
-                            <FileText className="h-3.5 w-3.5 mr-1.5" />
-                            No disponible
-                          </span>
                         )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(orden.created_at).toLocaleDateString('es-AR')}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-400 transition-colors mt-1" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   );

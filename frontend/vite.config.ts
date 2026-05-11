@@ -10,6 +10,7 @@ export default defineConfig({
       '/categorias':   { target: 'http://localhost:8000', changeOrigin: true },
       '/productos':    { target: 'http://localhost:8000', changeOrigin: true },
       '/certificados': { target: 'http://localhost:8000', changeOrigin: true },
+      '/empresas':     { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
 })

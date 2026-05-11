@@ -3,9 +3,9 @@ import { useAuthStore } from './store/useAuthStore';
 import LoginPage from './pages/LoginPage';
 import ConsultorPage from './pages/ConsultorPage';
 import AdminLayout from './layouts/AdminLayout';
-import MapeoPage from './pages/MapeoPage';
 import CertificadosPage from './pages/CertificadosPage';
 import ConfiguracionPage from './pages/ConfiguracionPage';
+import GestionDocumentosPage from './pages/GestionDocumentosPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -42,9 +42,9 @@ function App() {
             </ProtectedRoute>
           } 
         >
-          <Route index element={<Navigate to="/admin/mapeo" replace />} />
-          <Route path="mapeo" element={<MapeoPage />} />
+          <Route index element={<Navigate to="/admin/certificados" replace />} />
           <Route path="certificados" element={<CertificadosPage />} />
+          <Route path="gestion" element={<GestionDocumentosPage />} />
           <Route path="configuracion" element={<ConfiguracionPage />} />
         </Route>
       </Routes>

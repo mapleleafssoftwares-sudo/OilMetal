@@ -17,6 +17,7 @@ class UserProfile(BaseModel):
     rol: str
     nombre: Optional[str] = None
     email: str
+    empresa_id: Optional[UUID] = None
 
 class UserCreateRequest(BaseModel):
     email: str

@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, productos, certificados, categorias
+from app.routers import auth, certificados, empresas
 
 app = FastAPI(title="Gestión de Certificados API")
 
@@ -24,9 +24,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(productos.router)
 app.include_router(certificados.router)
-app.include_router(categorias.router)
+app.include_router(empresas.router)
 
 @app.get("/")
 def read_root():
