@@ -127,13 +127,13 @@ export default function ConfiguracionPage() {
   return (
     <div className="h-full flex flex-col max-w-5xl mx-auto w-full">
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
         {([
           { key: 'usuarios', label: 'Usuarios & Roles', Icon: Users },
           { key: 'empresas', label: 'Empresas', Icon: Building2 },
         ] as { key: Tab; label: string; Icon: any }[]).map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
             <Icon className="h-4 w-4" /> {label}
           </button>
         ))}
@@ -155,80 +155,121 @@ export default function ConfiguracionPage() {
             </button>
           </div>
 
-          {/* Table */}
+          {/* Table (md+) / Cards (mobile) */}
           {loadingUsr ? (
             <p className="text-center text-slate-400 py-12">Cargando usuarios...</p>
           ) : usuarios.length === 0 ? (
             <p className="text-center text-slate-400 py-12">No se encontraron usuarios.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-left">
-                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuario</th>
-                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Empresa</th>
-                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rol</th>
-                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {usuarios.map(usr => {
-                    const rolInfo = ROL_LABELS[usr.rol] || { label: usr.rol, color: 'bg-gray-100 text-gray-600 border-gray-200' };
-                    return (
-                      <tr key={usr.id} className="hover:bg-slate-50/60 transition-colors">
-                        {/* Usuario */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-100 to-slate-200 flex items-center justify-center text-slate-700 font-bold text-sm flex-shrink-0">
-                              {(usr.nombre || usr.email || '?').charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-slate-800 truncate">
-                                {usr.nombre || <span className="text-slate-400 italic font-normal">Sin nombre</span>}
-                              </p>
-                              <p className="text-xs text-slate-400 truncate">{usr.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        {/* Empresa */}
-                        <td className="px-6 py-4">
-                          {usr.empresa ? (
-                            <span className="flex items-center gap-1.5 text-slate-700">
-                              <Building2 className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                              {usr.empresa.nombre}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic text-xs">Sin empresa</span>
-                          )}
-                        </td>
-                        {/* Rol */}
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${rolInfo.color}`}>
+            <>
+              {/* Cards view — mobile only */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {usuarios.map(usr => {
+                  const rolInfo = ROL_LABELS[usr.rol] || { label: usr.rol, color: 'bg-gray-100 text-gray-600 border-gray-200' };
+                  return (
+                    <div key={usr.id} className="px-4 py-4 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-slate-200 flex items-center justify-center text-slate-700 font-bold text-sm flex-shrink-0">
+                        {(usr.nombre || usr.email || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-800 truncate text-sm">
+                          {usr.nombre || <span className="text-slate-400 italic font-normal">Sin nombre</span>}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">{usr.email}</p>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${rolInfo.color}`}>
                             {usr.rol === 'admin' ? <ShieldCheck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                             {rolInfo.label}
                           </span>
-                        </td>
-                        {/* Acciones */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => openEdit(usr)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200">
-                              <Pencil className="h-3.5 w-3.5" /> Editar
-                            </button>
-                            <button onClick={() => handleDeleteUser(usr.id, usr.nombre)} disabled={!!deletingId}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40">
-                              {deletingId === usr.id
-                                ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
-                                : <Trash2 className="h-4 w-4" />}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {usr.empresa && (
+                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                              <Building2 className="h-3 w-3 text-slate-400" />{usr.empresa.nombre}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => openEdit(usr)}
+                          className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleDeleteUser(usr.id, usr.nombre)} disabled={!!deletingId}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40">
+                          {deletingId === usr.id
+                            ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
+                            : <Trash2 className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Table view — md+ */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-left">
+                      <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuario</th>
+                      <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Empresa</th>
+                      <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rol</th>
+                      <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {usuarios.map(usr => {
+                      const rolInfo = ROL_LABELS[usr.rol] || { label: usr.rol, color: 'bg-gray-100 text-gray-600 border-gray-200' };
+                      return (
+                        <tr key={usr.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-100 to-slate-200 flex items-center justify-center text-slate-700 font-bold text-sm flex-shrink-0">
+                                {(usr.nombre || usr.email || '?').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-800 truncate">
+                                  {usr.nombre || <span className="text-slate-400 italic font-normal">Sin nombre</span>}
+                                </p>
+                                <p className="text-xs text-slate-400 truncate">{usr.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {usr.empresa ? (
+                              <span className="flex items-center gap-1.5 text-slate-700">
+                                <Building2 className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                {usr.empresa.nombre}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-xs">Sin empresa</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${rolInfo.color}`}>
+                              {usr.rol === 'admin' ? <ShieldCheck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                              {rolInfo.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => openEdit(usr)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200">
+                                <Pencil className="h-3.5 w-3.5" /> Editar
+                              </button>
+                              <button onClick={() => handleDeleteUser(usr.id, usr.nombre)} disabled={!!deletingId}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40">
+                                {deletingId === usr.id
+                                  ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
+                                  : <Trash2 className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -291,9 +332,9 @@ export default function ConfiguracionPage() {
 
       {/* Modal: Editar Usuario */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setEditingUser(null)} />
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl">
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl">
             <div className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -344,9 +385,9 @@ export default function ConfiguracionPage() {
       )}
 
       {/* Modal: Crear Usuario */}
-      {showCreateUser && (        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {showCreateUser && (        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCreateUser(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl">
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl">
             <div className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div>

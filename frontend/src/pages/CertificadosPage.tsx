@@ -104,9 +104,9 @@ export default function CertificadosPage() {
     <div className="h-full flex flex-col relative">
 
       {/* Top action bar */}
-      <div className="flex items-center justify-between mb-4">
-        {/* Sub-tabs */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+        {/* Sub-tabs: scroll horizontal en móvil */}
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none flex-shrink-0">
           {SECCIONES.map(s => {
             const a = accentClasses[s.color];
             const isActive = activeSection === s.key;
@@ -114,7 +114,7 @@ export default function CertificadosPage() {
               <button
                 key={s.key}
                 onClick={() => setActiveSection(s.key)}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                   isActive ? a.tab : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -125,7 +125,7 @@ export default function CertificadosPage() {
         </div>
         <button
           onClick={() => setShowUpload(true)}
-          className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-xl shadow-md transition-all hover:-translate-y-0.5 ${ac.btn}`}
+          className={`flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-xl shadow-md transition-all hover:-translate-y-0.5 sm:ml-auto ${ac.btn}`}
         >
           <Upload className="h-4 w-4" /> Subir Archivo
         </button>
@@ -166,36 +166,36 @@ export default function CertificadosPage() {
           ) : (
             <ul className="space-y-2 overflow-y-auto">
               {filteredItems.map(item => (
-            <li key={item.id} className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
-              <div className={`p-2 rounded-lg ${ac.icon}`}>
-                <FileText className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{item.nombre}</p>
-                {item.colada && <p className="text-xs text-slate-500 truncate">Colada: {item.colada}</p>}
-                <p className="text-xs text-slate-400">Cargado: {new Date(item.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={item.archivo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors font-medium"
-                >
-                  Ver
-                </a>
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  disabled={!!deletingId}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
-                >
-                  {deletingId === item.id
-                    ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
-                    : <Trash2 className="h-4 w-4" />}
-                </button>
-              </div>
-            </li>
-              ))}  
+                <li key={item.id} className="flex items-center gap-3 p-3 sm:p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
+                  <div className={`p-2 rounded-lg flex-shrink-0 ${ac.icon}`}>
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{item.nombre}</p>
+                    {item.colada && <p className="text-xs text-slate-500 truncate">Colada: {item.colada}</p>}
+                    <p className="text-xs text-slate-400">Cargado: {new Date(item.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <a
+                      href={item.archivo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+                    >
+                      Ver
+                    </a>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={!!deletingId}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      {deletingId === item.id
+                        ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
+                        : <Trash2 className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </>
@@ -203,14 +203,14 @@ export default function CertificadosPage() {
 
       {/* Upload modal */}
       {showUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeUploadModal} />
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 sm:p-8">
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 sm:p-8">
             <h3 className="text-xl font-bold text-slate-900 mb-1">Subir archivo</h3>
             <p className="text-sm text-slate-500 mb-6">Seccion: <span className="font-semibold">{seccion.label}</span></p>
             <form onSubmit={handleUpload} className="space-y-4">
               <div
-                className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center cursor-pointer hover:border-slate-400 transition-colors"
+                className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center cursor-pointer hover:border-slate-400 transition-colors active:bg-slate-50"
                 onClick={() => fileRef.current?.click()}
               >
                 {uploadFile ? (
@@ -218,7 +218,7 @@ export default function CertificadosPage() {
                 ) : (
                   <>
                     <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">Haz clic para seleccionar un archivo PDF</p>
+                    <p className="text-sm text-slate-500">Toca para seleccionar un archivo PDF</p>
                   </>
                 )}
                 <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => setUploadFile(e.target.files?.[0] || null)} />

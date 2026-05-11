@@ -4,3 +4,7 @@ backend/.env
 frontend/.env
 backend/.env.local
 frontend/.env.local
+
+# Environment variables
+.env
+.env.*

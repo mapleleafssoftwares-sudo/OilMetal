@@ -185,13 +185,13 @@ export default function GestionDocumentosPage() {
               const items = filteredDocs(tipo);
               return (
                 <div key={tipo} className={`border rounded-2xl p-5 ${c.border} ${c.bg}`}>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                     <h3 className={`font-bold text-sm ${c.text}`}>{TIPO_LABEL[tipo]}</h3>
                     <button
                       onClick={() => openLinkModal(tipo)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg shadow-sm transition-all ${c.btn}`}
                     >
-                      <Link className="h-3.5 w-3.5" /> Vincular documento
+                      <Link className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Vincular documento</span><span className="sm:hidden">Vincular</span>
                     </button>
                   </div>
                   {items.length === 0 ? (
@@ -225,9 +225,9 @@ export default function GestionDocumentosPage() {
 
         {/* Modal: Vincular documento */}
         {showLink && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowLink(false)} />
-            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[85vh] sm:max-h-[80vh]">
               <div className="p-6 border-b border-slate-100">
                 <h3 className="text-lg font-bold text-slate-900">Vincular documento</h3>
                 <p className="text-sm text-slate-500 mt-0.5">Seccion: <span className="font-semibold">{TIPO_LABEL[linkTipo]}</span></p>
@@ -268,19 +268,19 @@ export default function GestionDocumentosPage() {
   // ── Vista: Directorio de carpetas ──────────────────────────────────────────
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-amber-50 rounded-xl">
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2.5 bg-amber-50 rounded-xl flex-shrink-0">
             <FolderOpen className="h-5 w-5 text-amber-600" />
           </div>
-          <div>
-            <h2 className="font-bold text-slate-900">Gestión de Documentos</h2>
+          <div className="min-w-0">
+            <h2 className="font-bold text-slate-900 truncate">Gestión de Documentos</h2>
             <p className="text-xs text-slate-500">Carpetas por Orden de Compra</p>
           </div>
         </div>
         <button onClick={() => setShowNewOrden(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-amber-500/20 hover:bg-amber-600 hover:-translate-y-0.5 transition-all">
-          <Plus className="h-4 w-4" /> Nueva Orden de Compra
+          className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-amber-500/20 hover:bg-amber-600 hover:-translate-y-0.5 transition-all">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Orden de Compra</span><span className="sm:hidden">Nueva OC</span>
         </button>
       </div>
 
@@ -323,7 +323,7 @@ export default function GestionDocumentosPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOrdenes.map(orden => (
                 <div key={orden.id} onClick={() => openFolder(orden)}
-                  className="group relative bg-white border border-slate-200 rounded-2xl p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all">
+                  className="group relative bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 hover:border-amber-300 hover:shadow-md cursor-pointer transition-all active:bg-amber-50">
                   <div className="flex items-start gap-3">
                     <FolderOpen className="h-8 w-8 text-amber-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500 transition-colors" />
                     <div className="flex-1 min-w-0">
@@ -337,7 +337,7 @@ export default function GestionDocumentosPage() {
                       <p className="text-xs text-slate-400 mt-1">{new Date(orden.created_at).toLocaleDateString('es-AR')}</p>
                     </div>
                     <button onClick={e => handleDeleteOrden(orden.id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                      className="sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -350,9 +350,9 @@ export default function GestionDocumentosPage() {
 
       {/* Modal: Nueva OC */}
       {showNewOrden && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowNewOrden(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 sm:p-8">
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 sm:p-8">
             <h3 className="text-xl font-bold text-slate-900 mb-1">Nueva Orden de Compra</h3>
             <p className="text-sm text-slate-500 mb-6">Se creara una carpeta con 3 subcarpetas.</p>
             <form onSubmit={handleCreateOrden} className="space-y-4">
