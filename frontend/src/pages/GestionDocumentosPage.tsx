@@ -52,6 +52,7 @@ export default function GestionDocumentosPage() {
   const [repoDocs, setRepoDocs] = useState<RepoDoc[]>([]);
   const [loadingRepo, setLoadingRepo] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [searchRepo, setSearchRepo] = useState('');
 
   const fetchOrdenes = async () => {
     setLoading(true);
@@ -120,6 +121,7 @@ export default function GestionDocumentosPage() {
   const openLinkModal = async (tipo: string) => {
     setLinkTipo(tipo);
     setShowLink(true);
+    setSearchRepo('');
     setLoadingRepo(true);
     try {
       const seccion = TIPO_SECCION[tipo];
@@ -231,27 +233,47 @@ export default function GestionDocumentosPage() {
               <div className="p-6 border-b border-slate-100">
                 <h3 className="text-lg font-bold text-slate-900">Vincular documento</h3>
                 <p className="text-sm text-slate-500 mt-0.5">Seccion: <span className="font-semibold">{TIPO_LABEL[linkTipo]}</span></p>
+                <div className="relative mt-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar documento..."
+                    value={searchRepo}
+                    onChange={e => setSearchRepo(e.target.value)}
+                    className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                  {searchRepo && (
+                    <button onClick={() => setSearchRepo('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 {loadingRepo ? (
                   <p className="text-center text-slate-400 py-8">Cargando repositorio...</p>
                 ) : repoDocs.length === 0 ? (
                   <p className="text-center text-slate-400 py-8">No hay documentos disponibles.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {repoDocs.map(doc => {
-                      const yaVinculado = docs.some(d => d.id === doc.id && d.__tipo === linkTipo);
-                      return (
-                        <li key={doc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${yaVinculado ? 'opacity-40 border-slate-100 bg-slate-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'}`}
-                          onClick={() => !yaVinculado && !linking && handleLink(doc.id)}>
-                          <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                          <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
-                          {yaVinculado && <span className="text-xs text-slate-400">Ya vinculado</span>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                ) : (() => {
+                  const filtered = repoDocs.filter(d => d.nombre.toLowerCase().includes(searchRepo.toLowerCase()));
+                  return filtered.length === 0 ? (
+                    <p className="text-center text-slate-400 py-8">Sin resultados para "{searchRepo}".</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {filtered.map(doc => {
+                        const yaVinculado = docs.some(d => d.id === doc.id && d.__tipo === linkTipo);
+                        return (
+                          <li key={doc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${yaVinculado ? 'opacity-40 border-slate-100 bg-slate-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'}`}
+                            onClick={() => !yaVinculado && !linking && handleLink(doc.id)}>
+                            <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
+                            {yaVinculado && <span className="text-xs text-slate-400">Ya vinculado</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  );
+                })()}
               </div>
               <div className="p-4 border-t border-slate-100">
                 <button onClick={() => setShowLink(false)} className="w-full px-4 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors text-sm">
