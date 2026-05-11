@@ -63,17 +63,25 @@ class OrdenCreate(BaseModel):
 
 @router.post("/ordenes")
 def create_orden(body: OrdenCreate, current_user: UserProfile = Depends(get_current_admin)):
-    if not body.numero_orden.strip():
+    numero_orden_clean = body.numero_orden.strip()
+    if not numero_orden_clean:
         raise HTTPException(status_code=400, detail="El número de orden no puede estar vacío")
+    
     supabase = get_supabase_admin_client()
+    
+    # Validar que el número de orden no exista
+    existing = supabase.table("gestion_ordenes").select("id").eq("numero_orden", numero_orden_clean).execute()
+    if existing.data:
+        raise HTTPException(status_code=409, detail=f"El número de orden '{numero_orden_clean}' ya existe")
+    
     try:
         res = supabase.table("gestion_ordenes").insert({
-            "numero_orden": body.numero_orden.strip(),
+            "numero_orden": numero_orden_clean,
             "empresa_id": body.empresa_id,
         }).execute()
         return res.data[0]
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Número de orden ya existe u otro error: " + str(e))
+        raise HTTPException(status_code=400, detail=f"Error al crear la orden: {str(e)}")
 
 
 @router.delete("/ordenes/{orden_id}")
