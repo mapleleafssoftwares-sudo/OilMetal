@@ -162,8 +162,8 @@ export default function AdminLayout() {
           <Outlet />
         </div>
 
-        {/* ── Bottom Nav (solo móvil) — azul con logout ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-blue-800 safe-area-pb">
+        {/* ── Bottom Nav (solo móvil) — azul oscuro con logout ── */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-900 safe-area-pb">
           <div className="flex">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -173,7 +173,7 @@ export default function AdminLayout() {
                   key={item.path}
                   to={item.path}
                   className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
-                    isActive ? 'text-white' : 'text-blue-300 hover:text-blue-100'
+                    isActive ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -187,7 +187,7 @@ export default function AdminLayout() {
             })}
             <button
               onClick={handleLogout}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-blue-300 hover:text-white transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-slate-400 hover:text-slate-200 transition-colors"
             >
               <LogOut className="h-5 w-5" />
               <span className="text-[10px] font-medium leading-tight">Salir</span>
