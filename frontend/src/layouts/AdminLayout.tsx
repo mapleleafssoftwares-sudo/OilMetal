@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Settings, FileText, FolderOpen, Menu, X
+  LogOut, Settings, FileText, FolderOpen, X
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
