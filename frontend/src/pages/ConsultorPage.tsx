@@ -110,17 +110,20 @@ export default function ConsultorPage() {
                       ) : (
                         <ul className="space-y-2">
                           {items.map(doc => (
-                            <li key={doc.__link_id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
-                              <FileText className={`h-4 w-4 flex-shrink-0 ${c.icon}`} />
-                              <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
-                              {doc.archivo_url ? (
-                                <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors">
-                                  <ExternalLink className="h-3 w-3" /> Ver PDF
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400">Sin archivo</span>
-                              )}
+                            <li key={doc.__link_id} className="flex flex-col gap-2 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <FileText className={`h-4 w-4 flex-shrink-0 ${c.icon}`} />
+                                <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
+                                {doc.archivo_url ? (
+                                  <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors">
+                                    <ExternalLink className="h-3 w-3" /> Ver PDF
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-400">Sin archivo</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-400 pl-7">Última revisión: {new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                             </li>
                           ))}
                         </ul>

@@ -123,6 +123,7 @@ def list_documentos_orden(orden_id: str, current_user: UserProfile = Depends(get
             doc = doc_res.data[0]
             doc["__tipo"] = tipo
             doc["__link_id"] = link["id"]
+            doc["__link_created_at"] = link["created_at"]  # Fecha de vinculación
             result.append(doc)
     return result
 

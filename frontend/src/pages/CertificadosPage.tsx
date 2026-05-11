@@ -143,7 +143,7 @@ export default function CertificadosPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{item.nombre}</p>
                 {item.colada && <p className="text-xs text-slate-500 truncate">Colada: {item.colada}</p>}
-                <p className="text-xs text-slate-400">{new Date(item.created_at).toLocaleDateString('es-AR')}</p>
+                <p className="text-xs text-slate-400">Cargado: {new Date(item.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
               </div>
               <div className="flex items-center gap-2">
                 <a

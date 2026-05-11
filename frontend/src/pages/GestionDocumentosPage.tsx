@@ -170,17 +170,20 @@ export default function GestionDocumentosPage() {
                   ) : (
                     <ul className="space-y-2">
                       {items.map(doc => (
-                        <li key={doc.__link_id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
-                          <FileText className={`h-4 w-4 flex-shrink-0 ${c.text}`} />
-                          <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
-                          <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
-                            className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-medium transition-colors">
-                            Ver
-                          </a>
-                          <button onClick={() => handleUnlink(doc.__link_id)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                            <X className="h-4 w-4" />
-                          </button>
+                        <li key={doc.__link_id} className="flex flex-col gap-2 bg-white rounded-xl px-4 py-3 border border-white shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <FileText className={`h-4 w-4 flex-shrink-0 ${c.text}`} />
+                            <span className="flex-1 text-sm text-slate-800 font-medium truncate">{doc.nombre}</span>
+                            <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-medium transition-colors">
+                              Ver
+                            </a>
+                            <button onClick={() => handleUnlink(doc.__link_id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400 pl-7">Última revisión: {new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                         </li>
                       ))}
                     </ul>
