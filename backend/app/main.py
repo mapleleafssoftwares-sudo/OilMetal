@@ -10,6 +10,9 @@ origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://oil-metal-certificaciones.onrender.com",
+    "https://oilmetaldocs.com",
+    "https://www.oilmetaldocs.com",
+    "https://oilmetaldocuments.onrender.com",
 ]
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url not in origins:
