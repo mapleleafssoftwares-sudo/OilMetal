@@ -1,11 +1,56 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from typing import Optional
 from pydantic import BaseModel
+import httpx
 from app.schemas.schemas import LoginRequest, TokenResponse, UserProfile, UserCreateRequest
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+VALID_ROLES = ("admin", "consultor", "vendedor", "deposito", "calidad")
+INTERNAL_ROLES = ("admin", "vendedor", "deposito", "calidad")
+
+
+# ── Supabase Auth Admin REST helpers (bypasan el bug de supabase-py 2.0.x
+#    donde auth.admin no envía Authorization: Bearer correctamente) ──────────
+
+def _auth_admin_headers() -> dict:
+    return {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+
+def _list_auth_users() -> list[dict]:
+    url = f"{settings.SUPABASE_URL}/auth/v1/admin/users"
+    r = httpx.get(url, headers=_auth_admin_headers(), params={"page": 1, "per_page": 1000})
+    r.raise_for_status()
+    data = r.json()
+    return data.get("users", data) if isinstance(data, dict) else data
+
+def _create_auth_user(email: str, password: str) -> dict:
+    url = f"{settings.SUPABASE_URL}/auth/v1/admin/users"
+    r = httpx.post(url, headers=_auth_admin_headers(), json={
+        "email": email,
+        "password": password,
+        "email_confirm": True,
+    })
+    if r.status_code not in (200, 201):
+        data = r.json()
+        msg = data.get("message") or data.get("msg") or "Error al crear usuario"
+        raise HTTPException(status_code=400, detail=msg)
+    return r.json()
+
+def _delete_auth_user(user_id: str):
+    url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+    r = httpx.delete(url, headers=_auth_admin_headers())
+    if r.status_code not in (200, 204):
+        data = r.json()
+        raise HTTPException(status_code=400, detail=data.get("message") or "Error al eliminar usuario")
+
+
+# ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: LoginRequest):
@@ -37,19 +82,18 @@ def get_me(authorization: str = Header(...)):
         token = authorization.replace("Bearer ", "")
         res = supabase.auth.get_user(token)
         user = res.user
-        
-        # Fetch profile using admin client to bypass RLS
+
         profile_res = supabase_admin.table("perfiles").select("*").eq("id", user.id).execute()
-        
+
         if not profile_res.data:
-            rol = "consultor" # Default
+            rol = "consultor"
             nombre = None
             empresa_id = None
         else:
             rol = profile_res.data[0].get("rol", "consultor")
             nombre = profile_res.data[0].get("nombre")
             empresa_id = profile_res.data[0].get("empresa_id")
-            
+
         return UserProfile(
             id=user.id,
             email=user.email,
@@ -60,7 +104,9 @@ def get_me(authorization: str = Header(...)):
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# Dependency for protecting routes
+
+# ── Auth dependencies ─────────────────────────────────────────────────────────
+
 def get_current_user(authorization: str = Header(...)) -> UserProfile:
     return get_me(authorization)
 
@@ -69,14 +115,28 @@ def get_current_admin(current_user: UserProfile = Depends(get_current_user)) -> 
         raise HTTPException(status_code=403, detail="Not enough privileges")
     return current_user
 
-# ── Gestión de usuarios (solo admin) ──
+def get_current_internal_user(current_user: UserProfile = Depends(get_current_user)) -> UserProfile:
+    """Allows admin + internal employees (vendedor, deposito, calidad)."""
+    if current_user.rol not in INTERNAL_ROLES:
+        raise HTTPException(status_code=403, detail="Not enough privileges")
+    return current_user
+
+
+# ── Gestión de usuarios (solo admin) ─────────────────────────────────────────
+
 @router.get("/usuarios")
 def list_usuarios(current_user: UserProfile = Depends(get_current_admin)):
-    """Lista todos los perfiles de usuario con su rol."""
-    supabase = get_supabase_client()
-    supabase.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
-    res = supabase.table("perfiles").select("*, empresa:empresas(id, nombre)").execute()
-    return res.data
+    supabase_admin = get_supabase_admin_client()
+    res = supabase_admin.table("perfiles").select("*, empresa:empresas(id, nombre)").execute()
+    profiles = res.data or []
+    try:
+        auth_users = _list_auth_users()
+        email_map = {u["id"]: u.get("email") for u in auth_users}
+    except Exception:
+        email_map = {}
+    for p in profiles:
+        p["email"] = email_map.get(p["id"])
+    return profiles
 
 
 class UserUpdateRequest(BaseModel):
@@ -87,9 +147,8 @@ class UserUpdateRequest(BaseModel):
 
 @router.put("/usuarios/{user_id}")
 def update_usuario(user_id: str, body: UserUpdateRequest, current_user: UserProfile = Depends(get_current_admin)):
-    """Actualiza nombre, rol y/o empresa de un usuario."""
-    if body.rol and body.rol not in ("admin", "consultor"):
-        raise HTTPException(status_code=400, detail="Rol inválido.")
+    if body.rol and body.rol not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Rol inválido. Debe ser uno de: {', '.join(VALID_ROLES)}.")
     supabase_admin = get_supabase_admin_client()
     patch: dict = {}
     if body.nombre is not None:
@@ -101,28 +160,8 @@ def update_usuario(user_id: str, body: UserUpdateRequest, current_user: UserProf
     if not patch:
         raise HTTPException(status_code=400, detail="Nada que actualizar.")
     try:
-        # Force service role key on PostgREST to avoid gotrue session state
-        # overriding the auth header with a user JWT (same issue as in create_usuario)
-        supabase_admin.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
         supabase_admin.table("perfiles").update(patch).eq("id", user_id).execute()
-        supabase_admin.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
         res = supabase_admin.table("perfiles").select("*, empresa:empresas(id, nombre)").eq("id", user_id).execute()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return res.data[0]
-
-
-@router.put("/usuarios/{user_id}/empresa")
-def update_empresa(user_id: str, empresa_id: Optional[str] = None, current_user: UserProfile = Depends(get_current_admin)):
-    """Asigna o desvincula la empresa de un usuario."""
-    supabase_admin = get_supabase_admin_client()
-    # 'null' como string o vacío significa desasignar
-    new_empresa_id = None if not empresa_id or empresa_id.lower() == "null" else empresa_id
-    try:
-        supabase_admin.table("perfiles").update({"empresa_id": new_empresa_id}).eq("id", user_id).execute()
-        res = supabase_admin.table("perfiles").select("*").eq("id", user_id).execute()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not res.data:
@@ -132,53 +171,44 @@ def update_empresa(user_id: str, empresa_id: Optional[str] = None, current_user:
 
 @router.delete("/usuarios/{user_id}")
 def delete_usuario(user_id: str, current_user: UserProfile = Depends(get_current_admin)):
-    """Elimina un usuario de Auth y su perfil."""
     if user_id == str(current_user.id):
         raise HTTPException(status_code=400, detail="No podés eliminar tu propio usuario.")
-    try:
-        supabase_admin = get_supabase_admin_client()
-        supabase_admin.auth.admin.delete_user(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    _delete_auth_user(user_id)
     return {"ok": True}
 
 
 @router.post("/usuarios")
 def create_usuario(user_data: UserCreateRequest, current_user: UserProfile = Depends(get_current_admin)):
-    """Crea un nuevo usuario en Supabase Auth y su perfil."""
-    if user_data.rol not in ("admin", "consultor"):
-        raise HTTPException(status_code=400, detail="Rol inválido. Debe ser 'admin' o 'consultor'.")
-    try:
-        supabase_admin = get_supabase_admin_client()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Supabase admin client not available: {str(e)}")
+    if user_data.rol not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Rol inválido. Debe ser uno de: {', '.join(VALID_ROLES)}.")
+    supabase_admin = get_supabase_admin_client()
 
-    # Create the auth user
     try:
-        res = supabase_admin.auth.admin.create_user({
-            "email": user_data.email,
-            "password": user_data.password,
-            "email_confirm": True,
-        })
-        user_id = str(res.user.id)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        auth_user = _create_auth_user(user_data.email, user_data.password)
+        user_id = auth_user["id"]
+    except HTTPException as e:
+        err = e.detail.lower() if isinstance(e.detail, str) else ""
+        if any(k in err for k in ("already registered", "already exists", "user_already_exists", "email already")):
+            try:
+                auth_users = _list_auth_users()
+                existing = next((u for u in auth_users if u.get("email") == user_data.email), None)
+                if not existing:
+                    raise HTTPException(status_code=400, detail="El email ya está en uso.")
+                user_id = existing["id"]
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(status_code=400, detail="El email ya está registrado.")
+        else:
+            raise
 
-    # Insert profile — explicitly force service role key on PostgREST client
-    # to avoid gotrue session state overriding the auth header with a user JWT.
     try:
-        supabase_admin.postgrest.auth(settings.SUPABASE_SERVICE_ROLE_KEY)
-        supabase_admin.table("perfiles").insert({
+        supabase_admin.table("perfiles").upsert({
             "id": user_id,
             "nombre": user_data.nombre,
             "rol": user_data.rol,
         }).execute()
     except Exception as e:
-        # Revert the auth user if profile creation fails
-        try:
-            supabase_admin.auth.admin.delete_user(user_id)
-        except Exception:
-            pass
         raise HTTPException(status_code=400, detail=f"Error creando perfil: {str(e)}")
 
     return {
@@ -187,4 +217,3 @@ def create_usuario(user_data: UserCreateRequest, current_user: UserProfile = Dep
         "nombre": user_data.nombre,
         "rol": user_data.rol,
     }
-

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form, Query
 from app.schemas.schemas import CertificadoResponse, UserProfile
-from app.routers.auth import get_current_admin
+from app.routers.auth import get_current_admin, get_current_internal_user
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
 import uuid
 
@@ -12,6 +12,12 @@ SECTION_CONFIG = {
     "remitos":      {"table": "remitos",            "bucket": "Remitos"},
 }
 
+ROL_TO_SECCIONES: dict = {
+    "vendedor": ["ordenes"],
+    "deposito": ["remitos"],
+    "calidad":  ["certificados"],
+}
+
 
 def get_section_config(seccion: str) -> dict:
     cfg = SECTION_CONFIG.get(seccion)
@@ -20,13 +26,22 @@ def get_section_config(seccion: str) -> dict:
     return cfg
 
 
+def assert_section_access(seccion: str, current_user: UserProfile):
+    if current_user.rol == "admin":
+        return
+    allowed = ROL_TO_SECCIONES.get(current_user.rol)
+    if allowed and seccion not in allowed:
+        raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta seccion.")
+
+
 @router.get("/by-bucket/list")
 def list_by_section(
     seccion: str = Query(...),
-    current_user: UserProfile = Depends(get_current_admin)
+    current_user: UserProfile = Depends(get_current_internal_user)
 ):
+    assert_section_access(seccion, current_user)
     cfg = get_section_config(seccion)
-    supabase = get_supabase_client()
+    supabase = get_supabase_admin_client()
     res = supabase.table(cfg["table"]).select("*").order("created_at", desc=True).execute()
     return res.data or []
 
@@ -37,8 +52,9 @@ def upload_documento(
     colada: str = Form(None),
     seccion: str = Form("certificados"),
     file: UploadFile = File(...),
-    current_user: UserProfile = Depends(get_current_admin)
+    current_user: UserProfile = Depends(get_current_internal_user)
 ):
+    assert_section_access(seccion, current_user)
     cfg = get_section_config(seccion)
     supabase = get_supabase_admin_client()
 
@@ -72,8 +88,9 @@ def upload_documento(
 def delete_documento(
     seccion: str,
     id: str,
-    current_user: UserProfile = Depends(get_current_admin)
+    current_user: UserProfile = Depends(get_current_internal_user)
 ):
+    assert_section_access(seccion, current_user)
     cfg = get_section_config(seccion)
     supabase = get_supabase_admin_client()
 

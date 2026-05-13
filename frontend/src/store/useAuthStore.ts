@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 
+export type UserRol = 'admin' | 'consultor' | 'vendedor' | 'deposito' | 'calidad';
+export const INTERNAL_ROLES: UserRol[] = ['admin', 'vendedor', 'deposito', 'calidad'];
+
 interface User {
   id: string;
   email: string;
-  rol: 'admin' | 'consultor';
+  rol: UserRol;
   nombre?: string;
   empresa_id?: string;
 }
@@ -15,30 +18,9 @@ interface AuthState {
   logout: () => void;
 }
 
-const storedUser = (() => {
-  try {
-    const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    return null;
-  }
-})();
-
 export const useAuthStore = create<AuthState>((set) => ({
-  user: storedUser,
-  token: localStorage.getItem('token') || null,
-  
-  setAuth: (user, token) => {
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
-    set({ user, token });
-  },
-  
-  logout: () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    set({ user: null, token: null });
-  },
+  user: null,
+  token: null,
+  setAuth: (user, token) => set({ user, token }),
+  logout: () => set({ user: null, token: null }),
 }));

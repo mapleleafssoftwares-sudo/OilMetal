@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Settings, FileText, FolderOpen, X
+  LogOut, Settings, FileText, FolderOpen, BookOpen
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -16,10 +16,13 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
+  const isAdmin = user?.rol === 'admin';
+
   const navItems = [
     { name: 'Repositorio PDFs', path: '/admin/certificados', icon: FileText },
     { name: 'Gestión de Documentos', path: '/admin/gestion', icon: FolderOpen },
-    { name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings },
+    { name: 'Instructivo', path: '/admin/instructivo', icon: BookOpen },
+    ...(isAdmin ? [{ name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings }] : []),
   ];
 
   const pageTitle = location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
@@ -152,8 +155,23 @@ export default function AdminLayout() {
         {/* Top Header — desktop only */}
         <header className="hidden md:flex md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 items-center justify-between px-8 shadow-sm relative z-20">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 leading-tight">{pageTitle}</h2>
-            <p className="text-sm text-slate-500">{pageSubtitle}</p>
+            <h2 className="text-2xl font-bold text-slate-800">
+              {location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
+                : location.pathname.includes('/gestion') ? 'Gestión de Documentos'
+                : location.pathname.includes('/instructivo') ? 'Instructivo'
+                : 'Gestión de Usuarios'}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {location.pathname.includes('/certificados')
+                ? 'Sube y administra los archivos PDF del sistema.'
+                : location.pathname.includes('/gestion')
+                ? 'Administra las carpetas y documentos por Orden de Compra.'
+                : location.pathname.includes('/instructivo')
+                ? 'Guía de uso del sistema por roles.'
+                : 'Administra los usuarios y roles del sistema.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
           </div>
         </header>
 

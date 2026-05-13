@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Upload, Trash2, FileText, FolderOpen, Search, X } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface Certificado {
   id: string;
@@ -25,8 +26,19 @@ const accentClasses: Record<string, { tab: string; btn: string; icon: string; em
   emerald: { tab: 'bg-white text-emerald-700 shadow-sm',btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20',icon: 'text-emerald-600 bg-emerald-50',empty: 'text-emerald-300'},
 };
 
+const ROL_TO_SECCIONES: Partial<Record<string, SeccionKey[]>> = {
+  vendedor: ['ordenes'],
+  deposito: ['remitos'],
+  calidad:  ['certificados'],
+};
+
 export default function CertificadosPage() {
-  const [activeSection, setActiveSection] = useState<SeccionKey>('certificados');
+  const { user } = useAuthStore();
+  const seccionesVisibles = SECCIONES.filter(s => {
+    const allowed = ROL_TO_SECCIONES[user?.rol ?? ''];
+    return !allowed || allowed.includes(s.key);
+  });
+  const [activeSection, setActiveSection] = useState<SeccionKey>(seccionesVisibles[0]?.key ?? 'certificados');
   const [items, setItems] = useState<Certificado[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -107,7 +119,7 @@ export default function CertificadosPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
         {/* Sub-tabs: scroll horizontal en móvil */}
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none flex-shrink-0">
-          {SECCIONES.map(s => {
+          {seccionesVisibles.map(s => {
             const a = accentClasses[s.color];
             const isActive = activeSection === s.key;
             return (

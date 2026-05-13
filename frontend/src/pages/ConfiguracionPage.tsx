@@ -6,8 +6,11 @@ interface UsuarioPerfil { id: string; nombre?: string; email?: string; rol: stri
 interface Empresa { id: string; nombre: string; }
 
 const ROL_LABELS: Record<string, { label: string; color: string }> = {
-  admin:     { label: 'Administrador', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  admin:     { label: 'Administrador', color: 'bg-violet-100 text-violet-700 border-violet-200' },
   consultor: { label: 'Consultor',     color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  vendedor:  { label: 'Vendedor',      color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  deposito:  { label: 'Depósito',      color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  calidad:   { label: 'Calidad',       color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
 type Tab = 'usuarios' | 'empresas';
@@ -23,13 +26,13 @@ export default function ConfiguracionPage() {
   const [newEmail, setNewEmail]         = useState('');
   const [newPassword, setNewPassword]   = useState('');
   const [newNombreUsr, setNewNombreUsr] = useState('');
-  const [newRolUsr, setNewRolUsr]       = useState<'admin' | 'consultor'>('consultor');
+  const [newRolUsr, setNewRolUsr]       = useState<string>('consultor');
   const [creatingUser, setCreatingUser] = useState(false);
 
   // ── EDICIÓN DE USUARIO ────────────────────────────────────────────────────
   const [editingUser, setEditingUser] = useState<UsuarioPerfil | null>(null);
   const [editNombre, setEditNombre]   = useState('');
-  const [editRol, setEditRol]         = useState<'admin' | 'consultor'>('consultor');
+  const [editRol, setEditRol]         = useState<string>('consultor');
   const [editEmpresaId, setEditEmpresaId] = useState('');
   const [savingEdit, setSavingEdit]   = useState(false);
 
@@ -63,7 +66,7 @@ export default function ConfiguracionPage() {
   const openEdit = (usr: UsuarioPerfil) => {
     setEditingUser(usr);
     setEditNombre(usr.nombre || '');
-    setEditRol(usr.rol as 'admin' | 'consultor');
+    setEditRol(usr.rol);
     setEditEmpresaId(usr.empresa_id || '');
   };
 
@@ -361,9 +364,12 @@ export default function ConfiguracionPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rol</label>
-                  <select value={editRol} onChange={e => setEditRol(e.target.value as 'admin' | 'consultor')}
+                  <select value={editRol} onChange={e => setEditRol(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     <option value="consultor">Consultor</option>
+                    <option value="vendedor">Vendedor</option>
+                    <option value="deposito">Depósito</option>
+                    <option value="calidad">Calidad</option>
                     <option value="admin">Administrador</option>
                   </select>
                 </div>
@@ -416,9 +422,12 @@ export default function ConfiguracionPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rol</label>
-                  <select value={newRolUsr} onChange={e => setNewRolUsr(e.target.value as 'admin' | 'consultor')}
+                  <select value={newRolUsr} onChange={e => setNewRolUsr(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     <option value="consultor">Consultor</option>
+                    <option value="vendedor">Vendedor</option>
+                    <option value="deposito">Depósito</option>
+                    <option value="calidad">Calidad</option>
                     <option value="admin">Administrador</option>
                   </select>
                 </div>

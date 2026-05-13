@@ -1,11 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.schemas.schemas import UserProfile
-from app.routers.auth import get_current_admin, get_current_user
+from app.routers.auth import get_current_admin, get_current_user, get_current_internal_user
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
 from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(prefix="/empresas", tags=["empresas"])
+
+ROL_TO_TIPO: dict = {
+    "vendedor": "orden_compra",
+    "deposito": "remito",
+    "calidad":  "certificado",
+}
+
+
+def assert_tipo_access(tipo: str, current_user: UserProfile):
+    if current_user.rol == "admin":
+        return
+    allowed = ROL_TO_TIPO.get(current_user.rol)
+    if allowed and tipo != allowed:
+        raise HTTPException(status_code=403, detail="No tienes permiso para vincular este tipo de documento.")
 
 
 class EmpresaCreate(BaseModel):
@@ -62,7 +76,9 @@ class OrdenCreate(BaseModel):
 
 
 @router.post("/ordenes")
-def create_orden(body: OrdenCreate, current_user: UserProfile = Depends(get_current_admin)):
+def create_orden(body: OrdenCreate, current_user: UserProfile = Depends(get_current_internal_user)):
+    if current_user.rol not in ("admin", "vendedor"):
+        raise HTTPException(status_code=403, detail="No tienes permiso para crear órdenes.")
     numero_orden_clean = body.numero_orden.strip()
     if not numero_orden_clean:
         raise HTTPException(status_code=400, detail="El número de orden no puede estar vacío")
@@ -134,9 +150,10 @@ class DocumentoLink(BaseModel):
 
 
 @router.post("/ordenes/{orden_id}/documentos")
-def link_documento(orden_id: str, body: DocumentoLink, current_user: UserProfile = Depends(get_current_admin)):
+def link_documento(orden_id: str, body: DocumentoLink, current_user: UserProfile = Depends(get_current_internal_user)):
     if body.tipo not in ("certificado", "orden_compra", "remito"):
         raise HTTPException(status_code=400, detail="Tipo inválido")
+    assert_tipo_access(body.tipo, current_user)
     supabase = get_supabase_admin_client()
     try:
         res = supabase.table("gestion_documentos").insert({
@@ -150,7 +167,11 @@ def link_documento(orden_id: str, body: DocumentoLink, current_user: UserProfile
 
 
 @router.delete("/ordenes/{orden_id}/documentos/{link_id}")
-def unlink_documento(orden_id: str, link_id: str, current_user: UserProfile = Depends(get_current_admin)):
+def unlink_documento(orden_id: str, link_id: str, current_user: UserProfile = Depends(get_current_internal_user)):
+    # Fetch the link to know the tipo before deleting
     supabase = get_supabase_admin_client()
+    link_res = supabase.table("gestion_documentos").select("tipo").eq("id", link_id).execute()
+    if link_res.data:
+        assert_tipo_access(link_res.data[0]["tipo"], current_user)
     supabase.table("gestion_documentos").delete().eq("id", link_id).eq("orden_id", orden_id).execute()
     return {"message": "Documento desvinculado"}

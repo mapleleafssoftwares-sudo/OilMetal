@@ -1,27 +1,26 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/useAuthStore';
+import { useAuthStore, INTERNAL_ROLES } from './store/useAuthStore';
 import LoginPage from './pages/LoginPage';
 import ConsultorPage from './pages/ConsultorPage';
 import AdminLayout from './layouts/AdminLayout';
 import CertificadosPage from './pages/CertificadosPage';
 import ConfiguracionPage from './pages/ConfiguracionPage';
 import GestionDocumentosPage from './pages/GestionDocumentosPage';
+import InstructivoPage from './pages/InstructivoPage';
 
 // Protected Route Component
-const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
+const ProtectedRoute = ({ children, requireInternal = false }: { children: React.ReactNode, requireInternal?: boolean }) => {
   const { user } = useAuthStore();
-  
   if (!user) return <Navigate to="/login" />;
-  if (requireAdmin && user.rol !== 'admin') return <Navigate to="/" />;
-  
+  if (requireInternal && !INTERNAL_ROLES.includes(user.rol)) return <Navigate to="/" />;
   return <>{children}</>;
 };
 
-// Root route: redirect admins to /admin, consultors stay at /
+// Root route: redirect internal users to /admin, consultors see ConsultorPage
 const RootRoute = () => {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.rol === 'admin') return <Navigate to="/admin" replace />;
+  if (INTERNAL_ROLES.includes(user.rol)) return <Navigate to="/admin" replace />;
   return <ConsultorPage />;
 };
 
@@ -30,23 +29,24 @@ function App() {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        
-        {/* Public/Consultor route — admins are redirected to /admin */}
+
+        {/* Consultor route */}
         <Route path="/" element={<RootRoute />} />
-        
-        {/* Admin routes nested in Layout */}
-        <Route 
-          path="/admin" 
+
+        {/* Internal routes nested in Layout */}
+        <Route
+          path="/admin"
           element={
-            <ProtectedRoute requireAdmin={true}>
+            <ProtectedRoute requireInternal={true}>
               <AdminLayout />
             </ProtectedRoute>
-          } 
+          }
         >
           <Route index element={<Navigate to="/admin/certificados" replace />} />
           <Route path="certificados" element={<CertificadosPage />} />
           <Route path="gestion" element={<GestionDocumentosPage />} />
           <Route path="configuracion" element={<ConfiguracionPage />} />
+          <Route path="instructivo" element={<InstructivoPage />} />
         </Route>
       </Routes>
     </HashRouter>

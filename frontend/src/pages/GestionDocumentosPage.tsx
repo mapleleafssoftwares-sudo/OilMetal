@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface Empresa { id: string; nombre: string; }
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
@@ -28,7 +29,19 @@ const COLORS: Record<string, { bg: string; text: string; border: string; btn: st
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',btn: 'bg-emerald-600 hover:bg-emerald-700' },
 };
 
+const ROL_TO_TIPO: Partial<Record<string, string>> = {
+  vendedor: 'orden_compra',
+  deposito: 'remito',
+  calidad:  'certificado',
+};
+
 export default function GestionDocumentosPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.rol === 'admin';
+  const rolTipo = user ? (ROL_TO_TIPO[user.rol] ?? null) : null;
+  const canEditTipo = (tipo: string) => isAdmin || rolTipo === tipo;
+  const canCreateFolder = isAdmin || user?.rol === 'vendedor';
+  const canDeleteFolder = isAdmin;
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [searchOrdenes, setSearchOrdenes] = useState('');
   const [searchDocs, setSearchDocs] = useState('');
@@ -189,12 +202,14 @@ export default function GestionDocumentosPage() {
                 <div key={tipo} className={`border rounded-2xl p-5 ${c.border} ${c.bg}`}>
                   <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                     <h3 className={`font-bold text-sm ${c.text}`}>{TIPO_LABEL[tipo]}</h3>
+                    {canEditTipo(tipo) && (
                     <button
                       onClick={() => openLinkModal(tipo)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg shadow-sm transition-all ${c.btn}`}
                     >
                       <Link className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Vincular documento</span><span className="sm:hidden">Vincular</span>
                     </button>
+                    )}
                   </div>
                   {items.length === 0 ? (
                     <p className={`text-xs ${c.text} opacity-60`}>Sin documentos vinculados.</p>
@@ -209,10 +224,12 @@ export default function GestionDocumentosPage() {
                               className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-medium transition-colors">
                               Ver
                             </a>
+                            {canEditTipo(tipo) && (
                             <button onClick={() => handleUnlink(doc.__link_id)}
                               className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
                               <X className="h-4 w-4" />
                             </button>
+                            )}
                           </div>
                           <p className="text-xs text-slate-400 pl-7">Última revisión: {doc.__link_created_at ? new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</p>
                         </li>
@@ -300,10 +317,12 @@ export default function GestionDocumentosPage() {
             <p className="text-xs text-slate-500">Carpetas por Orden de Compra</p>
           </div>
         </div>
+        {canCreateFolder && (
         <button onClick={() => setShowNewOrden(true)}
           className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-amber-500/20 hover:bg-amber-600 hover:-translate-y-0.5 transition-all">
           <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Orden de Compra</span><span className="sm:hidden">Nueva OC</span>
         </button>
+        )}
       </div>
 
       {loading ? (
@@ -335,7 +354,6 @@ export default function GestionDocumentosPage() {
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <Folder className="h-14 w-14 text-slate-200" />
               <p className="text-slate-400 text-sm">No hay carpetas. Crea una Orden de Compra.</p>
-            </div>
           ) : filteredOrdenes.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <Folder className="h-14 w-14 text-slate-200" />
@@ -358,10 +376,12 @@ export default function GestionDocumentosPage() {
                       )}
                       <p className="text-xs text-slate-400 mt-1">{new Date(orden.created_at).toLocaleDateString('es-AR')}</p>
                     </div>
+                    {canDeleteFolder && (
                     <button onClick={e => handleDeleteOrden(orden.id, e)}
                       className="sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
