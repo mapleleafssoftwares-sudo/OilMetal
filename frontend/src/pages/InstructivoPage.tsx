@@ -293,72 +293,135 @@ export default function InstructivoPage() {
           })}
         </div>
 
-        {/* Flow overview (only when showing all) */}
+        {/* Flow diagram */}
         {!selected && (
-          <div className="mb-6 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
-              Flujo de responsabilidades
-            </h2>
-            <div className="flex flex-col sm:flex-row items-center gap-2 overflow-x-auto pb-2">
-              {/* Step 1 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center mb-2 shadow-sm">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                </div>
-                <span className="text-xs font-bold text-blue-700">Vendedor</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Crea la<br/>Orden de Compra</span>
-              </div>
-              <ArrowRight />
-              {/* Step 2 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 border-2 border-blue-200 border-dashed flex items-center justify-center mb-2">
-                  <FileText className="h-5 w-5 text-blue-400" />
-                </div>
-                <span className="text-xs font-bold text-blue-600">Vendedor</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Vincula docs de<br/>Ordenes de Compra</span>
-              </div>
-              <ArrowRight />
-              {/* Step 3 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mb-2 shadow-sm">
-                  <FolderOpen className="h-6 w-6 text-emerald-600" />
-                </div>
-                <span className="text-xs font-bold text-emerald-700">Depósito</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Vincula docs de<br/>Remitos</span>
-              </div>
-              <ArrowRight />
-              {/* Step 4 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-2 shadow-sm">
-                  <CheckCircle2 className="h-6 w-6 text-amber-500" />
-                </div>
-                <span className="text-xs font-bold text-amber-700">Calidad</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Vincula docs de<br/>Certificaciones</span>
-              </div>
-              <ArrowRight />
-              {/* Step 5 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-2 shadow-sm">
-                  <Eye className="h-6 w-6 text-slate-500" />
-                </div>
-                <span className="text-xs font-bold text-slate-600">Consultor</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Visualiza la<br/>carpeta completa</span>
-              </div>
-              <ArrowRight />
-              {/* Step 6 */}
-              <div className="flex flex-col items-center text-center min-w-[120px]">
-                <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center mb-2 shadow-sm">
-                  <ShieldCheck className="h-6 w-6 text-violet-600" />
-                </div>
-                <span className="text-xs font-bold text-violet-700">Administrador</span>
-                <span className="text-[11px] text-slate-500 leading-tight mt-1">Supervisa y gestiona<br/>todo el sistema</span>
-              </div>
+          <div className="mb-6 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Users className="h-4 w-4 text-slate-500" />
+                Flujo de trabajo
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">El Administrador supervisa todo. Los aportes internos son independientes y ocurren en paralelo, sin orden fijo.</p>
             </div>
-            {/* Legend */}
-            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-4 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-100 border border-indigo-300 inline-block" /> Roles internos (acceden por el panel de admin)</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-slate-100 border border-slate-300 inline-block" /> Consultor (accede por el portal externo)</span>
+            <div className="p-5 sm:p-8">
+
+              {/* Admin supervision frame */}
+              <div className="relative border-2 border-dashed border-violet-200 rounded-2xl px-4 sm:px-10 pt-10 pb-6">
+
+                {/* Admin pill */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <div className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-violet-200 whitespace-nowrap">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Administrador — supervisa todo el flujo
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center">
+
+                  {/* Step 1: Vendedor creates OC */}
+                  <div className="flex items-center gap-3 px-5 py-3.5 bg-blue-50 border-2 border-blue-300 rounded-2xl shadow-sm w-full max-w-xs">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <FolderOpen className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-blue-900">Vendedor</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Crea la carpeta Orden de Compra</p>
+                    </div>
+                  </div>
+
+                  {/* Fork: 1 line splits into 3 */}
+                  <svg viewBox="0 0 300 50" className="w-full max-w-sm h-12" preserveAspectRatio="none">
+                    <line x1="150" y1="0" x2="150" y2="14" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="50" y1="14" x2="250" y2="14" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="50" y1="14" x2="50" y2="42" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="150" y1="14" x2="150" y2="42" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="250" y1="14" x2="250" y2="42" stroke="#94a3b8" strokeWidth="2" />
+                    <polygon points="46,38 50,44 54,38" fill="#94a3b8" />
+                    <polygon points="146,38 150,44 154,38" fill="#94a3b8" />
+                    <polygon points="246,38 250,44 254,38" fill="#94a3b8" />
+                  </svg>
+
+                  {/* 3 parallel boxes */}
+                  <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
+                    <div className="flex flex-col items-center p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center mb-2">
+                        <FileText className="h-4 w-4 text-white" />
+                      </div>
+                      <p className="text-xs font-bold text-blue-800 leading-tight">Vendedor</p>
+                      <p className="text-[11px] text-blue-600 mt-1 leading-tight">Vincula Orden de Compra</p>
+                    </div>
+                    <div className="flex flex-col items-center p-3 bg-emerald-50 border-2 border-emerald-200 rounded-xl text-center">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center mb-2">
+                        <FolderOpen className="h-4 w-4 text-white" />
+                      </div>
+                      <p className="text-xs font-bold text-emerald-800 leading-tight">Depósito</p>
+                      <p className="text-[11px] text-emerald-600 mt-1 leading-tight">Vincula Remitos</p>
+                    </div>
+                    <div className="flex flex-col items-center p-3 bg-amber-50 border-2 border-amber-200 rounded-xl text-center">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center mb-2">
+                        <CheckCircle2 className="h-4 w-4 text-white" />
+                      </div>
+                      <p className="text-xs font-bold text-amber-800 leading-tight">Calidad</p>
+                      <p className="text-[11px] text-amber-600 mt-1 leading-tight">Vincula Certificados</p>
+                    </div>
+                  </div>
+
+                  {/* Join: 3 lines converge into 1 */}
+                  <svg viewBox="0 0 300 50" className="w-full max-w-sm h-12" preserveAspectRatio="none">
+                    <line x1="50" y1="0" x2="50" y2="32" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="150" y1="0" x2="150" y2="32" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="250" y1="0" x2="250" y2="32" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="50" y1="32" x2="250" y2="32" stroke="#94a3b8" strokeWidth="2" />
+                    <line x1="150" y1="32" x2="150" y2="44" stroke="#94a3b8" strokeWidth="2" />
+                    <polygon points="146,40 150,46 154,40" fill="#94a3b8" />
+                  </svg>
+
+                  {/* Carpeta completa */}
+                  <div className="flex items-center gap-3 px-5 py-3.5 bg-slate-50 border-2 border-slate-300 rounded-2xl shadow-sm w-full max-w-xs">
+                    <div className="w-10 h-10 rounded-xl bg-slate-600 flex items-center justify-center flex-shrink-0">
+                      <FolderOpen className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Carpeta completa</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Documentos listos para el cliente</p>
+                    </div>
+                  </div>
+
+                  {/* Arrow down */}
+                  <svg viewBox="0 0 20 36" className="w-5 h-9">
+                    <line x1="10" y1="0" x2="10" y2="28" stroke="#94a3b8" strokeWidth="2" />
+                    <polygon points="6,24 10,32 14,24" fill="#94a3b8" />
+                  </svg>
+
+                  {/* Consultor */}
+                  <div className="flex items-center gap-3 px-5 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl shadow-sm w-full max-w-xs">
+                    <div className="w-10 h-10 rounded-xl bg-slate-500 flex items-center justify-center flex-shrink-0">
+                      <Eye className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Consultor (Cliente)</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Visualiza los documentos de su empresa</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded border-2 border-dashed border-violet-300 inline-block flex-shrink-0" />
+                  Admin supervisa desde la creación hasta la consulta del cliente
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-flex gap-0.5 flex-shrink-0">
+                    <span className="w-2 h-4 rounded-l bg-blue-200 inline-block" />
+                    <span className="w-2 h-4 bg-emerald-200 inline-block" />
+                    <span className="w-2 h-4 rounded-r bg-amber-200 inline-block" />
+                  </span>
+                  Vendedor, Depósito y Calidad aportan en paralelo, sin orden fijo
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -483,14 +546,6 @@ export default function InstructivoPage() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function ArrowRight() {
-  return (
-    <svg className="hidden sm:block h-5 w-5 text-slate-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-    </svg>
-  );
-}
 
 const TABLE_ROWS: { key: string; label: string; group?: string }[] = [
   { key: 'repoTab_certificaciones', label: 'Tab Certificaciones',       group: 'Repositorio PDFs' },
