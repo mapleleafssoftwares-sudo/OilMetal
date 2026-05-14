@@ -354,6 +354,7 @@ export default function GestionDocumentosPage() {
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <Folder className="h-14 w-14 text-slate-200" />
               <p className="text-slate-400 text-sm">No hay carpetas. Crea una Orden de Compra.</p>
+            </div>
           ) : filteredOrdenes.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <Folder className="h-14 w-14 text-slate-200" />
