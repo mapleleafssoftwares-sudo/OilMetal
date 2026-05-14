@@ -2,11 +2,16 @@ from supabase import create_client, Client
 from app.core.config import settings
 
 def get_supabase_client() -> Client:
-    """Siempre usa service role key — el backend gestiona autorización por lógica de API."""
+    """Client con service role key (autorización gestionada por la API)."""
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
         raise ValueError("Supabase URL and Service Role Key must be configured")
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 def get_supabase_admin_client() -> Client:
-    """Alias mantenido por compatibilidad."""
-    return get_supabase_client()
+    """Client con service role key y postgrest.auth() para bypass explícito de RLS."""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError("Supabase URL and Service Role Key must be configured")
+    key = settings.SUPABASE_SERVICE_ROLE_KEY
+    client = create_client(settings.SUPABASE_URL, key)
+    client.postgrest.auth(key)
+    return client

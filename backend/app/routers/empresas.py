@@ -55,14 +55,14 @@ def delete_empresa(empresa_id: str, current_user: UserProfile = Depends(get_curr
 
 @router.get("/ordenes")
 def list_ordenes(current_user: UserProfile = Depends(get_current_user)):
-    supabase = get_supabase_client()
+    supabase = get_supabase_admin_client()
     query = (
         supabase.table("gestion_ordenes")
         .select("*, empresa:empresas(id, nombre)")
         .order("created_at", desc=True)
     )
-    # Consultores solo ven las carpetas de su empresa
-    if current_user.rol != "admin":
+    # Solo consultores (usuarios externos) ven únicamente sus carpetas de empresa
+    if current_user.rol == "consultor":
         if not current_user.empresa_id:
             return []
         query = query.eq("empresa_id", str(current_user.empresa_id))
