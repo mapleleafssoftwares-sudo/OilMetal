@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Settings, FileText, FolderOpen, BookOpen
+  LogOut, Settings, FileText, FolderOpen, BookOpen, X
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -24,16 +24,6 @@ export default function AdminLayout() {
     { name: 'Instructivo', path: '/admin/instructivo', icon: BookOpen },
     ...(isAdmin ? [{ name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings }] : []),
   ];
-
-  const pageTitle = location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
-    : location.pathname.includes('/gestion') ? 'Gestión de Documentos'
-    : 'Gestión de Usuarios';
-
-  const pageSubtitle = location.pathname.includes('/certificados')
-    ? 'Sube y administra los archivos PDF del sistema.'
-    : location.pathname.includes('/gestion')
-    ? 'Administra las carpetas y documentos por Orden de Compra.'
-    : 'Administra los usuarios y roles del sistema.';
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">

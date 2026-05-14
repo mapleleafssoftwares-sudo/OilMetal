@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Users, FolderOpen, FileText, ShieldCheck, Eye, Edit, Trash2,
+  Users, FolderOpen, FileText, ShieldCheck, Eye, Edit,
   CheckCircle2, XCircle, ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 
