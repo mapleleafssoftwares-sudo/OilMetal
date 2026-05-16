@@ -66,6 +66,8 @@ export default function GestionDocumentosPage() {
   const [loadingRepo, setLoadingRepo] = useState(false);
   const [linking, setLinking] = useState(false);
   const [searchRepo, setSearchRepo] = useState('');
+  const [searchEmpresaOC, setSearchEmpresaOC] = useState('');
+  const [showEmpresaList, setShowEmpresaList] = useState(false);
 
   const fetchOrdenes = async () => {
     setLoading(true);
@@ -109,7 +111,7 @@ export default function GestionDocumentosPage() {
     const numeroCompleto = `OC-${newNumero.trim()}`;
     try {
       await api.post('/empresas/ordenes', { numero_orden: numeroCompleto, empresa_id: newEmpresaId });
-      setShowNewOrden(false); setNewNumero(''); setNewEmpresaId('');
+      setShowNewOrden(false); setNewNumero(''); setNewEmpresaId(''); setSearchEmpresaOC(''); setShowEmpresaList(false);
       fetchOrdenes();
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Error al crear orden');
@@ -417,13 +419,45 @@ export default function GestionDocumentosPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-1">Se guardará como <span className="font-semibold text-slate-600">OC-{newNumero || '...'}</span></p>
               </div>
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Empresa <span className="text-rose-500">*</span></label>
-                <select value={newEmpresaId} onChange={e => setNewEmpresaId(e.target.value)} required
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all cursor-pointer">
-                  <option value="">Seleccionar empresa...</option>
-                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
+                <div className={`flex items-center bg-slate-50 border rounded-xl overflow-hidden transition-all focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500 ${newEmpresaId ? 'border-emerald-400 bg-emerald-50/40' : 'border-slate-200'}`}>
+                  <Search className="h-4 w-4 text-slate-400 ml-3 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Buscar empresa..."
+                    value={searchEmpresaOC}
+                    onChange={e => { setSearchEmpresaOC(e.target.value); setNewEmpresaId(''); setShowEmpresaList(true); }}
+                    onFocus={() => setShowEmpresaList(true)}
+                    onBlur={() => setTimeout(() => setShowEmpresaList(false), 150)}
+                    className="flex-1 px-3 py-2.5 bg-transparent text-sm outline-none"
+                  />
+                  {searchEmpresaOC && (
+                    <button type="button" onMouseDown={() => { setSearchEmpresaOC(''); setNewEmpresaId(''); }} className="mr-3 text-slate-400 hover:text-slate-600">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {showEmpresaList && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {empresas
+                      .filter(e => e.nombre.toLowerCase().includes(searchEmpresaOC.toLowerCase()))
+                      .map(e => (
+                        <button
+                          key={e.id}
+                          type="button"
+                          onMouseDown={() => { setNewEmpresaId(e.id); setSearchEmpresaOC(e.nombre); setShowEmpresaList(false); }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-800 transition-colors"
+                        >
+                          {e.nombre}
+                        </button>
+                      ))
+                    }
+                    {empresas.filter(e => e.nombre.toLowerCase().includes(searchEmpresaOC.toLowerCase())).length === 0 && (
+                      <p className="px-4 py-3 text-sm text-slate-400">Sin resultados.</p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowNewOrden(false)}

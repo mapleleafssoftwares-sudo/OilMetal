@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Check, X, Users, ShieldCheck, UserCheck, Building2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Check, X, Users, ShieldCheck, UserCheck, Building2, Pencil, Search } from 'lucide-react';
 import { api } from '../services/api';
 
 interface UsuarioPerfil { id: string; nombre?: string; email?: string; rol: string; empresa_id?: string; empresa?: { id: string; nombre: string } | null; }
@@ -42,6 +42,9 @@ export default function ConfiguracionPage() {
   const [newEmpNombre, setNewEmpNombre] = useState('');
   const [addingEmp, setAddingEmp]   = useState(false);
   const [creatingEmp, setCreatingEmp] = useState(false);
+
+  const [searchUsuarios, setSearchUsuarios] = useState('');
+  const [searchEmpresas, setSearchEmpresas] = useState('');
 
   const fetchUsuarios = async () => {
     setLoadingUsr(true);
@@ -127,6 +130,16 @@ export default function ConfiguracionPage() {
     fetchEmpresas();
   };
 
+  const filteredUsuarios = usuarios.filter(u =>
+    !searchUsuarios ||
+    (u.nombre || '').toLowerCase().includes(searchUsuarios.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(searchUsuarios.toLowerCase()) ||
+    (u.empresa?.nombre || '').toLowerCase().includes(searchUsuarios.toLowerCase())
+  );
+  const filteredEmpresas = empresas.filter(e =>
+    !searchEmpresas || e.nombre.toLowerCase().includes(searchEmpresas.toLowerCase())
+  );
+
   return (
     <div className="h-full flex flex-col max-w-5xl mx-auto w-full">
       {/* Tabs */}
@@ -158,16 +171,36 @@ export default function ConfiguracionPage() {
             </button>
           </div>
 
+          {/* Search usuarios */}
+          <div className="px-6 py-3 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, email o empresa..."
+                value={searchUsuarios}
+                onChange={e => setSearchUsuarios(e.target.value)}
+                className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              {searchUsuarios && (
+                <button onClick={() => setSearchUsuarios('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
           {/* Table (md+) / Cards (mobile) */}
           {loadingUsr ? (
             <p className="text-center text-slate-400 py-12">Cargando usuarios...</p>
           ) : usuarios.length === 0 ? (
             <p className="text-center text-slate-400 py-12">No se encontraron usuarios.</p>
+          ) : filteredUsuarios.length === 0 ? (
+            <p className="text-center text-slate-400 py-12">Sin resultados para "{searchUsuarios}".</p>
           ) : (
             <>
               {/* Cards view — mobile only */}
               <div className="md:hidden divide-y divide-slate-100">
-                {usuarios.map(usr => {
+                {filteredUsuarios.map(usr => {
                   const rolInfo = ROL_LABELS[usr.rol] || { label: usr.rol, color: 'bg-gray-100 text-gray-600 border-gray-200' };
                   return (
                     <div key={usr.id} className="px-4 py-4 flex items-start gap-3">
@@ -219,7 +252,7 @@ export default function ConfiguracionPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {usuarios.map(usr => {
+                    {filteredUsuarios.map(usr => {
                       const rolInfo = ROL_LABELS[usr.rol] || { label: usr.rol, color: 'bg-gray-100 text-gray-600 border-gray-200' };
                       return (
                         <tr key={usr.id} className="hover:bg-slate-50/60 transition-colors">
@@ -315,20 +348,41 @@ export default function ConfiguracionPage() {
           ) : empresas.length === 0 ? (
             <p className="text-center text-slate-400 py-8">No hay empresas registradas.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
-              {empresas.map(emp => (
-                <li key={emp.id} className="py-4 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <p className="flex-1 text-sm font-semibold text-slate-800">{emp.nombre}</p>
-                  <button onClick={() => handleDeleteEmpresa(emp.id, emp.nombre)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                    <Trash2 className="h-4 w-4" />
+            <>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar empresa..."
+                  value={searchEmpresas}
+                  onChange={e => setSearchEmpresas(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                />
+                {searchEmpresas && (
+                  <button onClick={() => setSearchEmpresas('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X className="h-4 w-4" />
                   </button>
-                </li>
-              ))}
-            </ul>
+                )}
+              </div>
+              {filteredEmpresas.length === 0 ? (
+                <p className="text-center text-slate-400 py-8">Sin resultados para "{searchEmpresas}".</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {filteredEmpresas.map(emp => (
+                    <li key={emp.id} className="py-4 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-emerald-600" />
+                      </div>
+                      <p className="flex-1 text-sm font-semibold text-slate-800">{emp.nombre}</p>
+                      <button onClick={() => handleDeleteEmpresa(emp.id, emp.nombre)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}
