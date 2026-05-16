@@ -11,8 +11,14 @@ ENV_FILE="$SCRIPT_DIR/.env"
 BACKUP_DIR="$SCRIPT_DIR/backups"
 RETENTION_DAYS=30
 
-# pg_dump de libpq (instalado vía Homebrew)
-PG_DUMP="/opt/homebrew/opt/libpq/bin/pg_dump"
+# pg_dump: usa Homebrew en macOS, PATH del sistema en Linux (Render)
+if [[ -x "/opt/homebrew/opt/libpq/bin/pg_dump" ]]; then
+  PG_DUMP="/opt/homebrew/opt/libpq/bin/pg_dump"
+elif command -v pg_dump &>/dev/null; then
+  PG_DUMP="$(command -v pg_dump)"
+else
+  PG_DUMP=""
+fi
 
 # ── Carga variables de entorno ─────────────────────────────────
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -29,9 +35,10 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 # ── Validaciones ──────────────────────────────────────────────
-if [[ ! -x "$PG_DUMP" ]]; then
-  echo "❌  pg_dump no encontrado en $PG_DUMP" >&2
-  echo "    Instalá con:  brew install libpq && brew link --force libpq" >&2
+if [[ -z "$PG_DUMP" || ! -x "$PG_DUMP" ]]; then
+  echo "❌  pg_dump no encontrado. Instalá con:" >&2
+  echo "    macOS:  brew install libpq && brew link --force libpq" >&2
+  echo "    Linux:  apt-get install -y postgresql-client" >&2
   exit 1
 fi
 
