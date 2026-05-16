@@ -8,3 +8,6 @@ frontend/.env.local
 # Environment variables
 .env
 .env.*
+
+# Backups locales
+backups/
