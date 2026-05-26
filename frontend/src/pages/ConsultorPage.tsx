@@ -10,7 +10,7 @@ interface Documento { id: string; nombre: string; archivo_url: string; __tipo: s
 const TIPO_LABEL: Record<string, string> = {
   certificado: 'Certificaciones',
   orden_compra: 'Ordenes de Compra',
-  remito: 'Remitos',
+  remito: 'Remitos y Pedidos',
 };
 const TIPO_COLOR: Record<string, { bg: string; text: string; border: string; icon: string }> = {
   certificado: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', icon: 'text-purple-500' },

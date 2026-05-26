@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, FileText, FolderOpen, Search, X } from 'lucide-react';
+import { Upload, Trash2, FileText, FolderOpen, Search, X, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -15,7 +15,7 @@ interface Certificado {
 const SECCIONES = [
   { key: 'certificados', label: 'Certificaciones',   color: 'purple'  },
   { key: 'ordenes',      label: 'Ordenes de Compra', color: 'blue'    },
-  { key: 'remitos',      label: 'Remitos',           color: 'emerald' },
+  { key: 'remitos',      label: 'Remitos y Pedidos', color: 'emerald' },
 ] as const;
 
 type SeccionKey = typeof SECCIONES[number]['key'];
@@ -44,8 +44,7 @@ export default function CertificadosPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDesc, setUploadDesc] = useState('');
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -83,26 +82,27 @@ export default function CertificadosPage() {
     }
   };
 
+  const existingNames = new Set(items.map(i => i.nombre.trim().toLowerCase()));
+  const isDuplicate = (f: File) => existingNames.has(f.name.replace(/\.pdf$/i, '').trim().toLowerCase());
+  const duplicateFiles = uploadFiles.filter(isDuplicate);
+  const hasDuplicates = duplicateFiles.length > 0;
+
   const closeUploadModal = () => {
     setShowUpload(false);
-    setUploadFile(null);
-    setUploadDesc('');
+    setUploadFiles([]);
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile) return;
-    if (!uploadDesc.trim()) {
-      alert('Por favor ingresa un nombre para el archivo');
-      return;
-    }
+    if (uploadFiles.length === 0 || hasDuplicates) return;
     setUploading(true);
     const fd = new FormData();
-    fd.append('file', uploadFile);
+    uploadFiles.forEach(f => fd.append('files', f));
     fd.append('seccion', seccion.key);
-    fd.append('nombre', uploadDesc.trim());
     try {
-      await api.post('/certificados/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/certificados/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const errores: string[] = res.data?.errores ?? [];
+      if (errores.length > 0) alert('Algunos archivos fallaron:\n' + errores.join('\n'));
       closeUploadModal();
       fetchItems();
     } catch (err: any) {
@@ -225,31 +225,59 @@ export default function CertificadosPage() {
                 className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center cursor-pointer hover:border-slate-400 transition-colors active:bg-slate-50"
                 onClick={() => fileRef.current?.click()}
               >
-                {uploadFile ? (
-                  <p className="text-sm font-semibold text-slate-700 truncate">{uploadFile.name}</p>
+                {uploadFiles.length > 0 ? (
+                  <ul className="text-left space-y-1 max-h-36 overflow-y-auto">
+                    {uploadFiles.map((f, i) => {
+                      const dup = isDuplicate(f);
+                      return (
+                        <li key={i} className={`text-sm truncate flex items-center gap-2 ${dup ? 'text-rose-600 font-medium' : 'text-slate-700'}`}>
+                          {dup
+                            ? <AlertTriangle className="h-4 w-4 flex-shrink-0 text-rose-500" />
+                            : <FileText className="h-4 w-4 flex-shrink-0 text-slate-400" />}
+                          {f.name}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 ) : (
                   <>
                     <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">Toca para seleccionar un archivo PDF</p>
+                    <p className="text-sm text-slate-500">Toca para seleccionar uno o más archivos PDF</p>
                   </>
                 )}
-                <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => setUploadFile(e.target.files?.[0] || null)} />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  className="hidden"
+                  onChange={e => setUploadFiles(Array.from(e.target.files ?? []))}
+                />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nombre del archivo *</label>
-                <input type="text" value={uploadDesc} onChange={e => setUploadDesc(e.target.value)} placeholder="Ej: Certificado ISO 2024"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-              </div>
+              {hasDuplicates && (
+                <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                  <AlertTriangle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-700 leading-snug">
+                    {duplicateFiles.length === 1
+                      ? `"${duplicateFiles[0].name.replace(/\.pdf$/i, '')}" ya existe en esta sección. Eliminá el archivo duplicado para continuar.`
+                      : `${duplicateFiles.length} archivos ya existen en esta sección: ${duplicateFiles.map(f => f.name.replace(/\.pdf$/i, '')).join(', ')}. Eliminá los duplicados para continuar.`
+                    }
+                  </p>
+                </div>
+              )}
+              {!hasDuplicates && uploadFiles.length > 1 && (
+                <p className="text-xs text-slate-500 text-center">{uploadFiles.length} archivos seleccionados</p>
+              )}
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={closeUploadModal}
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" disabled={!uploadFile || !uploadDesc.trim() || uploading}
+                <button type="submit" disabled={uploadFiles.length === 0 || uploading || hasDuplicates}
                   className={`flex-1 px-4 py-2.5 text-white font-semibold rounded-xl shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 ${ac.btn}`}>
                   {uploading
                     ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Subiendo...</>
-                    : 'Confirmar'
+                    : uploadFiles.length > 1 ? `Subir ${uploadFiles.length} archivos` : 'Confirmar'
                   }
                 </button>
               </div>

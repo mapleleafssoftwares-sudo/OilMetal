@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form, Query
+from typing import List, Optional
 from app.schemas.schemas import CertificadoResponse, UserProfile
 from app.routers.auth import get_current_admin, get_current_internal_user
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
 import uuid
+import os
 
 router = APIRouter(prefix="/certificados", tags=["certificados"])
 
@@ -48,40 +50,49 @@ def list_by_section(
 
 @router.post("/upload")
 def upload_documento(
-    nombre: str = Form(...),
-    colada: str = Form(None),
+    colada: Optional[str] = Form(None),
     seccion: str = Form("certificados"),
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     current_user: UserProfile = Depends(get_current_internal_user)
 ):
     assert_section_access(seccion, current_user)
     cfg = get_section_config(seccion)
     supabase = get_supabase_admin_client()
 
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Solo se permiten archivos PDF")
+    resultados = []
+    errores = []
 
-    storage_path = f"{uuid.uuid4()}_{file.filename}"
+    for file in files:
+        if not file.filename.lower().endswith(".pdf"):
+            errores.append(f"{file.filename}: solo se permiten archivos PDF")
+            continue
 
-    try:
-        file_content = file.file.read()
-        supabase.storage.from_(cfg["bucket"]).upload(
-            file=file_content,
-            path=storage_path,
-            file_options={"content-type": "application/pdf"}
-        )
-        public_url = supabase.storage.from_(cfg["bucket"]).get_public_url(storage_path)
+        nombre = os.path.splitext(file.filename)[0]
+        storage_path = f"{uuid.uuid4()}_{file.filename}"
 
-        res = supabase.table(cfg["table"]).insert({
-            "nombre": nombre,
-            "colada": colada,
-            "archivo_url": public_url,
-            "storage_path": storage_path,
-        }).execute()
-        return res.data[0]
+        try:
+            file_content = file.file.read()
+            supabase.storage.from_(cfg["bucket"]).upload(
+                file=file_content,
+                path=storage_path,
+                file_options={"content-type": "application/pdf"}
+            )
+            public_url = supabase.storage.from_(cfg["bucket"]).get_public_url(storage_path)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            res = supabase.table(cfg["table"]).insert({
+                "nombre": nombre,
+                "colada": colada,
+                "archivo_url": public_url,
+                "storage_path": storage_path,
+            }).execute()
+            resultados.append(res.data[0])
+        except Exception as e:
+            errores.append(f"{file.filename}: {str(e)}")
+
+    if not resultados and errores:
+        raise HTTPException(status_code=500, detail="; ".join(errores))
+
+    return {"subidos": resultados, "errores": errores}
 
 
 @router.delete("/{seccion}/{id}")

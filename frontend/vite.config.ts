@@ -38,11 +38,11 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/auth':         { target: 'http://localhost:8001', changeOrigin: true },
-      '/categorias':   { target: 'http://localhost:8001', changeOrigin: true },
-      '/productos':    { target: 'http://localhost:8001', changeOrigin: true },
-      '/certificados': { target: 'http://localhost:8001', changeOrigin: true },
-      '/empresas':     { target: 'http://localhost:8001', changeOrigin: true },
+      '/auth':         { target: 'http://localhost:8000', changeOrigin: true },
+      '/categorias':   { target: 'http://localhost:8000', changeOrigin: true },
+      '/productos':    { target: 'http://localhost:8000', changeOrigin: true },
+      '/certificados': { target: 'http://localhost:8000', changeOrigin: true },
+      '/empresas':     { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
 })

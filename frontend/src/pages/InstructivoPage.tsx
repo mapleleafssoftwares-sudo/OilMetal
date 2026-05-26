@@ -107,15 +107,15 @@ const MATRIX: Record<RolKey, ModulePerms> = {
     repoTab_certificaciones: { can: false },
     repoTab_ordenes:         { can: false },
     repoTab_remitos:         { can: true },
-    repoUpload:              { can: true, detail: 'Solo en Remitos' },
-    repoDelete:              { can: true, detail: 'Solo en Remitos' },
+    repoUpload:              { can: true, detail: 'Solo en Remitos y Pedidos' },
+    repoDelete:              { can: true, detail: 'Solo en Remitos y Pedidos' },
     gestionVerCarpetas:      { can: true },
     gestionCrearCarpeta:     { can: false },
     gestionEliminarCarpeta:  { can: false },
     gestionVincularCert:     { can: false },
     gestionVincularOC:       { can: false },
     gestionVincularRemito:   { can: true },
-    gestionDesvincular:      { can: true, detail: 'Solo documentos de Remitos' },
+    gestionDesvincular:      { can: true, detail: 'Solo documentos de Remitos y Pedidos' },
     gestionUsuarios:         { can: false },
   },
   calidad: {
@@ -355,7 +355,7 @@ export default function InstructivoPage() {
                         <FolderOpen className="h-4 w-4 text-white" />
                       </div>
                       <p className="text-xs font-bold text-emerald-800 leading-tight">Depósito</p>
-                      <p className="text-[11px] text-emerald-600 mt-1 leading-tight">Vincula Remitos</p>
+                      <p className="text-[11px] text-emerald-600 mt-1 leading-tight">Vincula Remitos y Pedidos</p>
                     </div>
                     <div className="flex flex-col items-center p-3 bg-amber-50 border-2 border-amber-200 rounded-xl text-center">
                       <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center mb-2">
@@ -457,7 +457,7 @@ export default function InstructivoPage() {
                   <Section title="Repositorio PDFs" icon={FileText}>
                     <PermRow label="Tab Certificaciones"    perm={perms.repoTab_certificaciones} />
                     <PermRow label="Tab Ordenes de Compra"  perm={perms.repoTab_ordenes} />
-                    <PermRow label="Tab Remitos"            perm={perms.repoTab_remitos} />
+                    <PermRow label="Tab Remitos y Pedidos"  perm={perms.repoTab_remitos} />
                     <PermRow label="Subir archivos"         perm={perms.repoUpload} />
                     <PermRow label="Eliminar archivos"      perm={perms.repoDelete} />
                   </Section>
@@ -468,7 +468,7 @@ export default function InstructivoPage() {
                     <PermRow label="Eliminar carpeta"                   perm={perms.gestionEliminarCarpeta} />
                     <PermRow label="Vincular Certificaciones"          perm={perms.gestionVincularCert} />
                     <PermRow label="Vincular Ordenes de Compra"        perm={perms.gestionVincularOC} />
-                    <PermRow label="Vincular Remitos"                  perm={perms.gestionVincularRemito} />
+                    <PermRow label="Vincular Remitos y Pedidos"        perm={perms.gestionVincularRemito} />
                     <PermRow label="Desvincular documentos"            perm={perms.gestionDesvincular} />
                   </Section>
 
@@ -550,7 +550,7 @@ export default function InstructivoPage() {
 const TABLE_ROWS: { key: string; label: string; group?: string }[] = [
   { key: 'repoTab_certificaciones', label: 'Tab Certificaciones',       group: 'Repositorio PDFs' },
   { key: 'repoTab_ordenes',         label: 'Tab Ordenes de Compra' },
-  { key: 'repoTab_remitos',         label: 'Tab Remitos' },
+  { key: 'repoTab_remitos',         label: 'Tab Remitos y Pedidos' },
   { key: 'repoUpload',              label: 'Subir archivos' },
   { key: 'repoDelete',              label: 'Eliminar archivos' },
   { key: 'gestionVerCarpetas',      label: 'Ver carpetas',              group: 'Gestión Documentos' },
@@ -558,7 +558,7 @@ const TABLE_ROWS: { key: string; label: string; group?: string }[] = [
   { key: 'gestionEliminarCarpeta',  label: 'Eliminar carpeta' },
   { key: 'gestionVincularCert',     label: 'Vincular Certificaciones' },
   { key: 'gestionVincularOC',       label: 'Vincular Ordenes de Compra' },
-  { key: 'gestionVincularRemito',   label: 'Vincular Remitos' },
+  { key: 'gestionVincularRemito',   label: 'Vincular Remitos y Pedidos' },
   { key: 'gestionDesvincular',      label: 'Desvincular documentos' },
   { key: 'gestionUsuarios',         label: 'Administrar usuarios',      group: 'Usuarios' },
 ];

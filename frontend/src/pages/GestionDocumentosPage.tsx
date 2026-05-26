@@ -11,7 +11,7 @@ interface RepoDoc { id: string; nombre: string; archivo_url: string; }
 const TIPO_LABEL: Record<string, string> = {
   certificado: 'Certificaciones',
   orden_compra: 'Ordenes de Compra',
-  remito: 'Remitos',
+  remito: 'Remitos y Pedidos',
 };
 const TIPO_COLOR: Record<string, string> = {
   certificado: 'purple',
