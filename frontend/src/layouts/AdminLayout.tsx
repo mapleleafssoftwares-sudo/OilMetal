@@ -166,7 +166,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Dynamic Page Content */}
-        <div className="flex-1 overflow-hidden p-3 md:p-6 pb-20 md:pb-6">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6">
           <Outlet />
         </div>
 
