@@ -407,14 +407,12 @@ export default function GestionDocumentosPage() {
                   <span className="px-4 py-2.5 text-sm font-bold text-slate-500 bg-slate-100 border-r border-slate-200 select-none">OC-</span>
                   <input
                     autoFocus
-                    type="number"
-                    min="1"
-                    step="1"
+                    type="text"
                     value={newNumero}
-                    onChange={e => setNewNumero(e.target.value.replace(/[^0-9]/g, ''))}
-                    placeholder="Ej: 1042"
+                    onChange={e => setNewNumero(e.target.value.replace(/[^a-zA-Z0-9\-_/]/g, ''))}
+                    placeholder="Ej: 1042 o AB-123/24"
                     required
-                    className="flex-1 px-3 py-2.5 bg-transparent text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-1 px-3 py-2.5 bg-transparent text-sm outline-none"
                   />
                 </div>
                 <p className="text-xs text-slate-400 mt-1">Se guardará como <span className="font-semibold text-slate-600">OC-{newNumero || '...'}</span></p>
@@ -464,7 +462,7 @@ export default function GestionDocumentosPage() {
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors text-sm">
                   Cancelar
                 </button>
-                <button type="submit" disabled={!newNumero.trim() || !/^[0-9]+$/.test(newNumero) || !newEmpresaId || creating}
+                <button type="submit" disabled={!newNumero.trim() || !newEmpresaId || creating}
                   className="flex-1 px-4 py-2.5 bg-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/25 hover:bg-amber-600 disabled:opacity-50 transition-all text-sm">
                   {creating ? 'Creando...' : 'Crear Carpeta'}
                 </button>
