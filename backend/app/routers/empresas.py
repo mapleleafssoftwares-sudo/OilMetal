@@ -140,6 +140,7 @@ def list_documentos_orden(orden_id: str, current_user: UserProfile = Depends(get
             doc["__tipo"] = tipo
             doc["__link_id"] = link["id"]
             doc["__link_created_at"] = link["created_at"]  # Fecha de vinculación
+            doc["__observacion"] = link.get("observacion") or ""
             result.append(doc)
     return result
 
@@ -147,6 +148,7 @@ def list_documentos_orden(orden_id: str, current_user: UserProfile = Depends(get
 class DocumentoLink(BaseModel):
     tipo: str        # 'certificado' | 'orden_compra' | 'remito'
     documento_id: str
+    observacion: Optional[str] = None
 
 
 @router.post("/ordenes/{orden_id}/documentos")
@@ -156,14 +158,30 @@ def link_documento(orden_id: str, body: DocumentoLink, current_user: UserProfile
     assert_tipo_access(body.tipo, current_user)
     supabase = get_supabase_admin_client()
     try:
-        res = supabase.table("gestion_documentos").insert({
+        payload = {
             "orden_id": orden_id,
             "tipo": body.tipo,
             "documento_id": body.documento_id,
-        }).execute()
+        }
+        if body.observacion is not None:
+            payload["observacion"] = body.observacion.strip()
+        res = supabase.table("gestion_documentos").insert(payload).execute()
         return res.data[0]
     except Exception as e:
         raise HTTPException(status_code=400, detail="Documento ya vinculado u otro error: " + str(e))
+
+
+class DocumentoObservacion(BaseModel):
+    observacion: Optional[str] = None
+
+
+@router.patch("/ordenes/{orden_id}/documentos/{link_id}")
+def update_observacion(orden_id: str, link_id: str, body: DocumentoObservacion, current_user: UserProfile = Depends(get_current_admin)):
+    supabase = get_supabase_admin_client()
+    supabase.table("gestion_documentos").update({
+        "observacion": body.observacion.strip() if body.observacion else None
+    }).eq("id", link_id).eq("orden_id", orden_id).execute()
+    return {"message": "Observación actualizada"}
 
 
 @router.delete("/ordenes/{orden_id}/documentos/{link_id}")

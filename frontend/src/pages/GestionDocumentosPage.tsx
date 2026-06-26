@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 
 interface Empresa { id: string; nombre: string; }
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
-interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; __link_created_at?: string; }
+interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; __link_created_at?: string; __observacion: string; }
 interface RepoDoc { id: string; nombre: string; archivo_url: string; }
 
 const TIPO_LABEL: Record<string, string> = {
@@ -69,6 +69,26 @@ export default function GestionDocumentosPage() {
   const [searchEmpresaOC, setSearchEmpresaOC] = useState('');
   const [showEmpresaList, setShowEmpresaList] = useState(false);
 
+  // Observaciones inline
+  const [editingObs, setEditingObs] = useState<Record<string, string>>({});
+  const [savingObs, setSavingObs] = useState<Record<string, boolean>>({}); 
+
+  const handleObsChange = (linkId: string, value: string) => {
+    setEditingObs(prev => ({ ...prev, [linkId]: value }));
+  };
+
+  const handleObsSave = async (linkId: string) => {
+    if (!openOrden) return;
+    const value = editingObs[linkId] ?? '';
+    setSavingObs(prev => ({ ...prev, [linkId]: true }));
+    try {
+      await api.patch(`/empresas/ordenes/${openOrden.id}/documentos/${linkId}`, { observacion: value || null });
+      setDocs(prev => prev.map(d => d.__link_id === linkId ? { ...d, __observacion: value } : d));
+    } catch { /* silencio */ } finally {
+      setSavingObs(prev => ({ ...prev, [linkId]: false }));
+    }
+  };
+
   const fetchOrdenes = async () => {
     setLoading(true);
     try {
@@ -91,7 +111,12 @@ export default function GestionDocumentosPage() {
     setLoadingDocs(true);
     try {
       const res = await api.get(`/empresas/ordenes/${orden.id}/documentos`);
-      setDocs(Array.isArray(res.data) ? res.data : []);
+      const data: Documento[] = Array.isArray(res.data) ? res.data : [];
+      setDocs(data);
+      // Inicializar estado de edición con las observaciones actuales
+      const initial: Record<string, string> = {};
+      data.forEach(d => { initial[d.__link_id] = d.__observacion || ''; });
+      setEditingObs(initial);
     } catch { setDocs([]); } finally { setLoadingDocs(false); }
   };
 
@@ -152,7 +177,14 @@ export default function GestionDocumentosPage() {
       await api.post(`/empresas/ordenes/${openOrden.id}/documentos`, { tipo: linkTipo, documento_id: docId });
       setShowLink(false);
       const res = await api.get(`/empresas/ordenes/${openOrden.id}/documentos`);
-      setDocs(res.data);
+      const data: Documento[] = res.data;
+      setDocs(data);
+      // Preservar observaciones existentes e inicializar las nuevas
+      setEditingObs(prev => {
+        const next = { ...prev };
+        data.forEach(d => { if (!(d.__link_id in next)) next[d.__link_id] = d.__observacion || ''; });
+        return next;
+      });
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Error al vincular');
     } finally { setLinking(false); }
@@ -227,13 +259,28 @@ export default function GestionDocumentosPage() {
                               Ver
                             </a>
                             {canEditTipo(tipo) && (
-                            <button onClick={() => handleUnlink(doc.__link_id)}
-                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                              <X className="h-4 w-4" />
-                            </button>
+                              <button onClick={() => handleUnlink(doc.__link_id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                <X className="h-4 w-4" />
+                              </button>
                             )}
                           </div>
-                          <p className="text-xs text-slate-400 pl-7">Última revisión: {doc.__link_created_at ? new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</p>
+                          
+                          <div className="ml-7 flex flex-col gap-1.5">
+                            <p className="text-xs text-slate-400">
+                              Última revisión: {doc.__link_created_at ? new Date(doc.__link_created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                            </p>
+                            <input
+                              type="text"
+                              placeholder={isAdmin ? "Agregar observación... (opcional)" : "Sin observaciones"}
+                              value={editingObs[doc.__link_id] ?? ''}
+                              onChange={e => handleObsChange(doc.__link_id, e.target.value)}
+                              onBlur={() => handleObsSave(doc.__link_id)}
+                              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                              disabled={!isAdmin || savingObs[doc.__link_id]}
+                              className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-slate-400 focus:bg-white transition-all placeholder-slate-300 text-slate-600 disabled:opacity-50"
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>
