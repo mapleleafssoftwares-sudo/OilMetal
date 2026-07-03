@@ -7,6 +7,8 @@ import CertificadosPage from './pages/CertificadosPage';
 import ConfiguracionPage from './pages/ConfiguracionPage';
 import GestionDocumentosPage from './pages/GestionDocumentosPage';
 import InstructivoPage from './pages/InstructivoPage';
+import NoConformidadesPage from './pages/NoConformidadesPage';
+import NoConformidadDetailPage from './pages/NoConformidadDetailPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireInternal = false }: { children: React.ReactNode, requireInternal?: boolean }) => {
@@ -47,6 +49,22 @@ function App() {
           <Route path="gestion" element={<GestionDocumentosPage />} />
           <Route path="configuracion" element={<ConfiguracionPage />} />
           <Route path="instructivo" element={<InstructivoPage />} />
+          <Route
+            path="no-conformidades"
+            element={
+              <ProtectedRoute requireInternal={true}>
+                <NoConformidadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="no-conformidades/:id"
+            element={
+              <ProtectedRoute requireInternal={true}>
+                <NoConformidadDetailPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
       </Routes>
     </HashRouter>

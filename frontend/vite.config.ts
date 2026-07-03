@@ -43,6 +43,7 @@ export default defineConfig({
       '/productos':    { target: 'http://localhost:8000', changeOrigin: true },
       '/certificados': { target: 'http://localhost:8000', changeOrigin: true },
       '/empresas':     { target: 'http://localhost:8000', changeOrigin: true },
+      '/no-conformidades': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
 })

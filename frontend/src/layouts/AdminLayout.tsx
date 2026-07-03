@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Settings, FileText, FolderOpen, BookOpen, X
+  LogOut, Settings, FileText, FolderOpen, BookOpen, X, AlertTriangle
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -10,6 +10,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -17,11 +18,14 @@ export default function AdminLayout() {
   };
 
   const isAdmin = user?.rol === 'admin';
+  const isInternal = Boolean(user && ['admin', 'vendedor', 'deposito', 'calidad'].includes(user.rol));
+  const hideRouteHeader = location.pathname.includes('/no-conformidades');
 
   const navItems = [
     { name: 'Repositorio PDFs', path: '/admin/certificados', icon: FileText },
     { name: 'Gestión de Documentos', path: '/admin/gestion', icon: FolderOpen },
     { name: 'Instructivo', path: '/admin/instructivo', icon: BookOpen },
+    ...(isInternal ? [{ name: 'Reclamos y No Conformidades', path: '/admin/no-conformidades', icon: AlertTriangle }] : []),
     ...(isAdmin ? [{ name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings }] : []),
   ];
 
@@ -29,12 +33,18 @@ export default function AdminLayout() {
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
 
       {/* ── Sidebar (visible en md+) ── */}
-      <aside className="hidden md:flex w-64 bg-slate-900/95 backdrop-blur-xl text-slate-300 flex-col border-r border-slate-800 shadow-2xl relative z-20">
-        <div className="h-20 flex items-center justify-center px-6 border-b border-slate-800/60">
-          <img src="/logo.png" alt="OilMetal" className="h-20 w-auto object-contain" />
+      <aside className={`hidden md:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-900/95 backdrop-blur-xl text-slate-300 flex-col border-r border-slate-800 shadow-2xl relative z-20 transition-all duration-300`}>
+        <div className={`h-20 flex items-center justify-center ${sidebarCollapsed ? 'px-2' : 'px-4'} border-b border-slate-800/60`}>
+          <button
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
+            className={`w-full flex items-center rounded-xl transition-colors hover:bg-slate-800/50 ${sidebarCollapsed ? 'justify-center p-2' : 'justify-center p-2.5'}`}
+          >
+            <img src="/logo.png" alt="OilMetal" className={`${sidebarCollapsed ? 'h-11' : 'h-14'} w-auto object-contain transition-all`} />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-4'} py-6 space-y-2 overflow-y-auto`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -42,35 +52,41 @@ export default function AdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
+                title={item.name}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  sidebarCollapsed ? 'justify-center' : ''
+                } ${
                   isActive
                   ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {item.name}
+                {!sidebarCollapsed && item.name}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800/60">
-          <div className="flex items-center gap-3 mb-4 px-2">
+        <div className={`p-4 border-t border-slate-800/60 ${sidebarCollapsed ? 'px-2' : ''}`}>
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-4 px-2`}>
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white font-bold shadow-inner">
               {user?.email?.charAt(0).toUpperCase() || 'A'}
             </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">{user?.nombre || 'Administrador'}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-            </div>
+            {!sidebarCollapsed && (
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium text-white truncate">{user?.nombre || 'Administrador'}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center w-full gap-2 px-4 py-2.5 text-sm font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors border border-red-400/20"
+            title="Cerrar sesión"
+            className={`flex items-center justify-center w-full ${sidebarCollapsed ? 'gap-0 px-2' : 'gap-2 px-4'} py-2.5 text-sm font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors border border-red-400/20`}
           >
             <LogOut className="h-4 w-4" />
-            Cerrar Sesión
+            {!sidebarCollapsed && 'Cerrar Sesión'}
           </button>
         </div>
       </aside>
@@ -143,27 +159,29 @@ export default function AdminLayout() {
         <div className="md:hidden safe-area-pt" />
 
         {/* Top Header — desktop only */}
-        <header className="hidden md:flex md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 items-center justify-between px-8 shadow-sm relative z-20">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">
-              {location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
-                : location.pathname.includes('/gestion') ? 'Gestión de Documentos'
-                : location.pathname.includes('/instructivo') ? 'Instructivo'
-                : 'Gestión de Usuarios'}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {location.pathname.includes('/certificados')
-                ? 'Sube y administra los archivos PDF del sistema.'
-                : location.pathname.includes('/gestion')
-                ? 'Administra las carpetas y documentos por Orden de Compra.'
-                : location.pathname.includes('/instructivo')
-                ? 'Guía de uso del sistema por roles.'
-                : 'Administra los usuarios y roles del sistema.'}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-          </div>
-        </header>
+        {!hideRouteHeader && (
+          <header className="hidden md:flex md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 items-center justify-between px-8 shadow-sm relative z-20">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">
+                {location.pathname.includes('/certificados') ? 'Repositorio de PDFs'
+                  : location.pathname.includes('/gestion') ? 'Gestión de Documentos'
+                  : location.pathname.includes('/instructivo') ? 'Instructivo'
+                  : 'Gestión de Usuarios'}
+              </h2>
+              <p className="text-sm text-slate-500">
+                {location.pathname.includes('/certificados')
+                  ? 'Sube y administra los archivos PDF del sistema.'
+                  : location.pathname.includes('/gestion')
+                  ? 'Administra las carpetas y documentos por Orden de Compra.'
+                  : location.pathname.includes('/instructivo')
+                  ? 'Guía de uso del sistema por roles.'
+                  : 'Administra los usuarios y roles del sistema.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+            </div>
+          </header>
+        )}
 
         {/* Dynamic Page Content */}
         <div className="flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6">
@@ -188,6 +206,8 @@ export default function AdminLayout() {
                   <span className="text-[10px] font-medium leading-tight text-center px-1">
                     {item.name === 'Repositorio PDFs' ? 'PDFs'
                       : item.name === 'Gestión de Documentos' ? 'Documentos'
+                        : item.name === 'Reclamos y No Conformidades' ? 'Reclamos'
+                      : item.name === 'Instructivo' ? 'Guía'
                       : 'Usuarios'}
                   </span>
                 </Link>

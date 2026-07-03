@@ -69,3 +69,85 @@ class ProductoResponse(ProductoBase):
 
 class ProductoConCertificadoResponse(ProductoResponse):
     certificados: List[CertificadoResponse] = []
+
+
+# ---- No Conformidades ----
+class SectorTipoBase(BaseModel):
+    nombre: str
+
+
+class SectorTipoCreate(SectorTipoBase):
+    pass
+
+
+class CargoBase(BaseModel):
+    nombre: str
+
+
+class CargoCreate(CargoBase):
+    pass
+
+
+class NoConformidadCreate(BaseModel):
+    sector_tipo_id: int
+    plazo: Optional[str] = None
+
+
+class NoConformidadListItem(BaseModel):
+    id: int
+    fecha_apertura: datetime
+    fecha_cierre: Optional[datetime] = None
+    plazo: Optional[str] = None
+    sector_tipo_id: Optional[int] = None
+    sector_tipo_nombre: Optional[str] = None
+    estado: str
+
+
+class NoConformidadResponsable(BaseModel):
+    id: int
+    nombre: str
+
+
+class NoConformidadArchivo(BaseModel):
+    id: int
+    archivo_url: str
+    descripcion: Optional[str] = None
+    fecha_subida: datetime
+
+
+class NoConformidadDetail(BaseModel):
+    id: int
+    sector_tipo_id: Optional[int] = None
+    sector_tipo_nombre: Optional[str] = None
+    fecha_apertura: datetime
+    fecha_cierre: Optional[datetime] = None
+    descripcion: Optional[str] = None
+    evidencia_objetiva: Optional[str] = None
+    solucion_inmediata: Optional[str] = None
+    analisis_causa_raiz: Optional[str] = None
+    accion_propuesta: Optional[str] = None
+    plazo: Optional[str] = None
+    cumplimiento_accion: Optional[bool] = None
+    cumplimiento_en_plazo: Optional[bool] = None
+    estado: str
+    responsables: List[NoConformidadResponsable] = []
+    archivos: List[NoConformidadArchivo] = []
+
+
+class NoConformidadUpdate(BaseModel):
+    sector_tipo_id: Optional[int] = None
+    descripcion: Optional[str] = None
+    evidencia_objetiva: Optional[str] = None
+    solucion_inmediata: Optional[str] = None
+    analisis_causa_raiz: Optional[str] = None
+    accion_propuesta: Optional[str] = None
+    plazo: Optional[str] = None
+
+
+class NoConformidadResponsablesUpdate(BaseModel):
+    cargo_ids: List[int]
+
+
+class NoConformidadCloseRequest(BaseModel):
+    cumplimiento_accion: bool
+    cumplimiento_en_plazo: bool

@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
+const apiBaseUrl = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '',
+  baseURL: apiBaseUrl,
 });
 
 // Interceptor para agregar token a las peticiones
