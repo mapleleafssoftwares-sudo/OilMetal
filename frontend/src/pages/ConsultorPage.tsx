@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2, Search, X } from 'lucide-react';
+import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2, Search, X, Download } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -26,6 +26,7 @@ export default function ConsultorPage() {
   const [openOrden, setOpenOrden]   = useState<Orden | null>(null);
   const [docs, setDocs]             = useState<Documento[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -53,6 +54,25 @@ export default function ConsultorPage() {
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
+  const handleExportZip = async () => {
+    try {
+      setExportingZip(true);
+      const res = await api.get('/empresas/repositorio.zip', { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'repositorio.zip';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      alert(error?.response?.data?.detail || 'No se pudo exportar el repositorio');
+    } finally {
+      setExportingZip(false);
+    }
+  };
   const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
   const filteredOrdenes = ordenes.filter(o => 
     o.numero_orden.toLowerCase().includes(searchOrdenes.toLowerCase()) ||
@@ -183,10 +203,18 @@ export default function ConsultorPage() {
               <div className="p-2.5 bg-amber-50 rounded-xl">
                 <FolderOpen className="h-5 w-5 text-amber-600" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-slate-900">Mis Carpetas</h2>
                 <p className="text-xs text-slate-500">Documentos asignados a tu empresa</p>
               </div>
+              <button
+                type="button"
+                onClick={handleExportZip}
+                disabled={exportingZip || loading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" /> {exportingZip ? 'Generando ZIP...' : 'Descargar ZIP'}
+              </button>
             </div>
 
             {loading ? (

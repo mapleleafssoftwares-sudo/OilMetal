@@ -1,9 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from app.schemas.schemas import UserProfile
 from app.routers.auth import get_current_admin, get_current_user, get_current_internal_user
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
 from pydantic import BaseModel
 from typing import Optional
+from io import BytesIO
+from pathlib import Path
+from urllib.parse import urlparse
+import httpx
+import zipfile
+import re
 
 router = APIRouter(prefix="/empresas", tags=["empresas"])
 
@@ -13,6 +20,12 @@ ROL_TO_TIPO: dict = {
     "calidad":  "certificado",
 }
 
+TIPO_LABEL_ZIP: dict[str, str] = {
+    "certificado": "Certificaciones",
+    "orden_compra": "Ordenes de Compra",
+    "remito": "Remitos y Pedidos",
+}
+
 
 def assert_tipo_access(tipo: str, current_user: UserProfile):
     if current_user.rol == "admin":
@@ -20,6 +33,17 @@ def assert_tipo_access(tipo: str, current_user: UserProfile):
     allowed = ROL_TO_TIPO.get(current_user.rol)
     if allowed and tipo != allowed:
         raise HTTPException(status_code=403, detail="No tienes permiso para vincular este tipo de documento.")
+
+
+def _sanitize_zip_name(value: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9._ -]+", "_", value or "repositorio").strip().strip(".")
+    return safe or "repositorio"
+
+
+def _download_url_content(url: str) -> bytes:
+    response = httpx.get(url, follow_redirects=True, timeout=60)
+    response.raise_for_status()
+    return response.content
 
 
 class EmpresaCreate(BaseModel):
@@ -68,6 +92,90 @@ def list_ordenes(current_user: UserProfile = Depends(get_current_user)):
         query = query.eq("empresa_id", str(current_user.empresa_id))
     res = query.execute()
     return res.data or []
+
+
+@router.get("/repositorio.zip")
+def export_repositorio_zip(current_user: UserProfile = Depends(get_current_user)):
+    supabase = get_supabase_admin_client()
+
+    empresa_id = current_user.empresa_id if current_user.rol == "consultor" else current_user.empresa_id
+    if not empresa_id and current_user.rol == "consultor":
+        raise HTTPException(status_code=400, detail="Tu cuenta no tiene una empresa asignada")
+
+    empresa_nombre = None
+    if empresa_id:
+        empresa_res = supabase.table("empresas").select("id, nombre").eq("id", str(empresa_id)).limit(1).execute()
+        if empresa_res.data:
+            empresa_nombre = empresa_res.data[0].get("nombre")
+
+    orden_query = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("created_at", desc=True)
+    if empresa_id:
+        orden_query = orden_query.eq("empresa_id", str(empresa_id))
+
+    ordenes_res = orden_query.execute()
+    ordenes = ordenes_res.data or []
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        base_folder = _sanitize_zip_name(empresa_nombre or f"repositorio_{current_user.id}")
+        if not ordenes:
+            zip_file.writestr(f"{base_folder}/README.txt", "No hay carpetas ni documentos para exportar.")
+        for orden in ordenes:
+            orden_id = orden["id"]
+            numero_orden = _sanitize_zip_name(str(orden.get("numero_orden") or orden_id))
+            empresa = orden.get("empresa") or {}
+            if isinstance(empresa, list):
+                empresa = empresa[0] if empresa else {}
+            empresa_folder = _sanitize_zip_name(empresa.get("nombre") or empresa_nombre or "Empresa")
+
+            docs_res = (
+                supabase.table("gestion_documentos")
+                .select("id, tipo, documento_id, observacion, created_at")
+                .eq("orden_id", orden_id)
+                .order("tipo")
+                .execute()
+            )
+            links = docs_res.data or []
+
+            for link in links:
+                tipo = link.get("tipo")
+                tipo_label = TIPO_LABEL_ZIP.get(tipo, tipo or "Documentos")
+                doc_id = link.get("documento_id")
+                table_map = {
+                    "certificado": "certificados",
+                    "orden_compra": "ordenes_de_compra",
+                    "remito": "remitos",
+                }
+                table = table_map.get(tipo)
+                if not table:
+                    continue
+
+                doc_res = supabase.table(table).select("*").eq("id", str(doc_id)).limit(1).execute()
+                if not doc_res.data:
+                    continue
+
+                doc = doc_res.data[0]
+                archivo_url = doc.get("archivo_url")
+                if not archivo_url:
+                    continue
+
+                parsed = urlparse(archivo_url)
+                filename = Path(parsed.path).name or f"documento_{doc.get('id')}"
+                if not Path(filename).suffix:
+                    filename = f"{filename}.pdf"
+
+                folder_path = f"{base_folder}/{empresa_folder}/{numero_orden}/{tipo_label}"
+                archive_name = f"{folder_path}/{_sanitize_zip_name(doc.get('nombre') or filename)}"
+                try:
+                    content = _download_url_content(archivo_url)
+                    zip_file.writestr(archive_name, content)
+                except Exception as exc:
+                    zip_file.writestr(f"{folder_path}/ERROR_{_sanitize_zip_name(doc.get('nombre') or filename)}.txt", f"No se pudo descargar el archivo: {exc}")
+
+    buffer.seek(0)
+    filename = f"{_sanitize_zip_name(empresa_nombre or 'repositorio')}.zip"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(buffer, media_type="application/zip", headers=headers)
 
 
 class OrdenCreate(BaseModel):
