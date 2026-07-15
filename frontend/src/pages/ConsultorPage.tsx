@@ -27,6 +27,7 @@ export default function ConsultorPage() {
   const [docs, setDocs]             = useState<Documento[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
+  const [downloadingOrden, setDownloadingOrden] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -71,6 +72,27 @@ export default function ConsultorPage() {
       alert(error?.response?.data?.detail || 'No se pudo exportar el repositorio');
     } finally {
       setExportingZip(false);
+    }
+  };
+
+  const handleDownloadOrden = async (orden: Orden, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setDownloadingOrden(orden.id);
+      const res = await api.get(`/empresas/ordenes/${orden.id}/zip`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${orden.numero_orden}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      alert(error?.response?.data?.detail || 'No se pudo descargar la carpeta');
+    } finally {
+      setDownloadingOrden(null);
     }
   };
   const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
@@ -279,6 +301,16 @@ export default function ConsultorPage() {
                           </p>
                         </div>
                         <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-400 transition-colors mt-1" />
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <button
+                          onClick={(e) => handleDownloadOrden(orden, e)}
+                          disabled={downloadingOrden === orden.id}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-amber-50 hover:text-amber-700 text-slate-600 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {downloadingOrden === orden.id ? 'Descargando...' : `Descargar ${orden.numero_orden}`}
+                        </button>
                       </div>
                     </button>
                   ))}

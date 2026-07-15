@@ -253,6 +253,77 @@ def list_documentos_orden(orden_id: str, current_user: UserProfile = Depends(get
     return result
 
 
+@router.get("/ordenes/{orden_id}/zip")
+def export_orden_zip(orden_id: str, current_user: UserProfile = Depends(get_current_user)):
+    supabase = get_supabase_admin_client()
+
+    orden_res = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").eq("id", orden_id).limit(1).execute()
+    if not orden_res.data:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    orden = orden_res.data[0]
+
+    # Consultor solo puede descargar ordenes de su empresa
+    if current_user.rol == "consultor":
+        if not current_user.empresa_id or str(current_user.empresa_id) != str(orden.get("empresa_id")):
+            raise HTTPException(status_code=403, detail="No tienes permiso para descargar esta carpeta")
+
+    numero_orden = _sanitize_zip_name(str(orden.get("numero_orden") or orden_id))
+    empresa = orden.get("empresa") or {}
+    if isinstance(empresa, list):
+        empresa = empresa[0] if empresa else {}
+    empresa_nombre = _sanitize_zip_name(empresa.get("nombre") or "Empresa")
+
+    docs_res = (
+        supabase.table("gestion_documentos")
+        .select("id, tipo, documento_id, observacion, created_at")
+        .eq("orden_id", orden_id)
+        .order("tipo")
+        .execute()
+    )
+    links = docs_res.data or []
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        if not links:
+            zip_file.writestr(f"{numero_orden}/README.txt", "No hay documentos en esta carpeta.")
+        for link in links:
+            tipo = link.get("tipo")
+            tipo_label = TIPO_LABEL_ZIP.get(tipo, tipo or "Documentos")
+            doc_id = link.get("documento_id")
+            table_map = {
+                "certificado": "certificados",
+                "orden_compra": "ordenes_de_compra",
+                "remito": "remitos",
+            }
+            table = table_map.get(tipo)
+            if not table:
+                continue
+            doc_res = supabase.table(table).select("*").eq("id", str(doc_id)).limit(1).execute()
+            if not doc_res.data:
+                continue
+            doc = doc_res.data[0]
+            archivo_url = doc.get("archivo_url")
+            if not archivo_url:
+                continue
+            parsed = urlparse(archivo_url)
+            filename = Path(parsed.path).name or f"documento_{doc.get('id')}"
+            if not Path(filename).suffix:
+                filename = f"{filename}.pdf"
+            folder_path = f"{numero_orden}/{tipo_label}"
+            archive_name = f"{folder_path}/{_sanitize_zip_name(doc.get('nombre') or filename)}"
+            try:
+                content = _download_url_content(archivo_url)
+                zip_file.writestr(archive_name, content)
+            except Exception as exc:
+                zip_file.writestr(f"{folder_path}/ERROR_{_sanitize_zip_name(doc.get('nombre') or filename)}.txt", f"No se pudo descargar el archivo: {exc}")
+
+    buffer.seek(0)
+    zip_filename = f"{numero_orden}.zip"
+    headers = {"Content-Disposition": f'attachment; filename="{zip_filename}"'}
+    return StreamingResponse(buffer, media_type="application/zip", headers=headers)
+
+
 class DocumentoLink(BaseModel):
     tipo: str        # 'certificado' | 'orden_compra' | 'remito'
     documento_id: str
