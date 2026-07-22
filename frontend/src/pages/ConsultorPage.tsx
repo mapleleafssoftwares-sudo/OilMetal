@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2, Search, X, Download } from 'lucide-react';
+import { FolderOpen, Folder, FileText, ExternalLink, LogOut, ChevronRight, Building2, Search, X, Download, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
+import { getNoConformidadesByOrden } from '../services/noConformidades';
+import type { NoConformidadDetail } from '../types/noConformidades';
+import { openInformeNoConformidad } from '../utils/informeNoConformidad';
 
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
 interface Documento { id: string; nombre: string; archivo_url: string; __tipo: string; __link_id: string; __link_created_at?: string; __observacion?: string; }
@@ -26,6 +29,7 @@ export default function ConsultorPage() {
   const [openOrden, setOpenOrden]   = useState<Orden | null>(null);
   const [docs, setDocs]             = useState<Documento[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [ncs, setNcs] = useState<NoConformidadDetail[]>([]);
   const [exportingZip, setExportingZip] = useState(false);
   const [downloadingOrden, setDownloadingOrden] = useState<string | null>(null);
 
@@ -52,6 +56,11 @@ export default function ConsultorPage() {
       setDocs(Array.isArray(res.data) ? res.data : []);
     } catch { setDocs([]); }
     finally { setLoadingDocs(false); }
+
+    try {
+      const ncData = await getNoConformidadesByOrden(orden.id);
+      setNcs(ncData);
+    } catch { setNcs([]); }
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -170,9 +179,9 @@ export default function ConsultorPage() {
 
             {loadingDocs ? (
               <p className="text-center text-slate-400 py-16">Cargando documentos...</p>
-            ) : docsByTipo('certificado').length === 0 && docsByTipo('orden_compra').length === 0 && docsByTipo('remito').length === 0 ? (
+            ) : docsByTipo('certificado').length === 0 && docsByTipo('orden_compra').length === 0 && docsByTipo('remito').length === 0 && ncs.length === 0 ? (
               <p className="text-center text-slate-400 py-16">Sin documentos en esta carpeta.</p>
-            ) : filteredDocs('certificado').length === 0 && filteredDocs('orden_compra').length === 0 && filteredDocs('remito').length === 0 ? (
+            ) : filteredDocs('certificado').length === 0 && filteredDocs('orden_compra').length === 0 && filteredDocs('remito').length === 0 && ncs.length === 0 ? (
               <p className="text-center text-slate-400 py-8">No hay documentos que coincidan con tu búsqueda.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -215,6 +224,35 @@ export default function ConsultorPage() {
                     </div>
                   );
                 })}
+
+                {ncs.length > 0 && (
+                  <div className="border rounded-2xl p-5 border-slate-300 bg-slate-50">
+                    <h3 className="font-bold text-sm mb-4 text-slate-700 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" /> No Conformidades
+                    </h3>
+                    <ul className="space-y-2">
+                      {ncs.map(nc => (
+                        <li key={nc.id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-slate-200 shadow-sm">
+                          <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-slate-800 font-medium truncate">
+                              NC N° {nc.id}{nc.sector_tipo_nombre ? ` — ${nc.sector_tipo_nombre}` : ''}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Apertura: {new Date(nc.fecha_apertura).toLocaleDateString('es-AR')} · {nc.estado}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => openInformeNoConformidad(nc)}
+                            className="text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-semibold transition-colors"
+                          >
+                            Ver informe
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </>

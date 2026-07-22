@@ -88,6 +88,14 @@ class CargoCreate(CargoBase):
     pass
 
 
+class RequisitoPuntualBase(BaseModel):
+    nombre: str
+
+
+class RequisitoPuntualCreate(RequisitoPuntualBase):
+    pass
+
+
 class NoConformidadCreate(BaseModel):
     sector_tipo_id: int
     plazo: Optional[str] = None
@@ -101,6 +109,8 @@ class NoConformidadListItem(BaseModel):
     sector_tipo_id: Optional[int] = None
     sector_tipo_nombre: Optional[str] = None
     estado: str
+    orden_id: Optional[str] = None
+    orden_numero: Optional[str] = None
 
 
 class NoConformidadResponsable(BaseModel):
@@ -121,6 +131,7 @@ class NoConformidadDetail(BaseModel):
     sector_tipo_nombre: Optional[str] = None
     fecha_apertura: datetime
     fecha_cierre: Optional[datetime] = None
+    fecha_reclamo: Optional[str] = None
     descripcion: Optional[str] = None
     evidencia_objetiva: Optional[str] = None
     solucion_inmediata: Optional[str] = None
@@ -132,6 +143,8 @@ class NoConformidadDetail(BaseModel):
     estado: str
     responsables: List[NoConformidadResponsable] = []
     archivos: List[NoConformidadArchivo] = []
+    orden_id: Optional[str] = None
+    orden_numero: Optional[str] = None
 
 
 class NoConformidadUpdate(BaseModel):
@@ -142,6 +155,8 @@ class NoConformidadUpdate(BaseModel):
     analisis_causa_raiz: Optional[str] = None
     accion_propuesta: Optional[str] = None
     plazo: Optional[str] = None
+    fecha_reclamo: Optional[str] = None
+    orden_id: Optional[str] = None  # UUID de la orden del gestor de documentos (vacío = desasociar)
 
 
 class NoConformidadResponsablesUpdate(BaseModel):

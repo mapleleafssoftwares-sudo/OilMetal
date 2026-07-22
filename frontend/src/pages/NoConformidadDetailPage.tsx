@@ -7,18 +7,28 @@ import {
   getCargos,
   getNoConformidadArchivos,
   getNoConformidadDetail,
+  getOrdenesDisponibles,
+  getRequisitosPuntuales,
   getSectoresTipo,
   reopenNoConformidad,
   uploadNoConformidadArchivo,
   updateNoConformidad,
   updateNoConformidadResponsables,
 } from '../services/noConformidades';
+import type { OrdenDisponible } from '../services/noConformidades';
 import { useAuthStore } from '../store/useAuthStore';
-import type { Cargo, NoConformidadArchivo, NoConformidadDetail, SectorTipo } from '../types/noConformidades';
+import type { Cargo, NoConformidadArchivo, NoConformidadDetail, RequisitoPuntual, SectorTipo } from '../types/noConformidades';
+import SearchableSelect from '../components/SearchableSelect';
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
-  return new Date(value).toLocaleDateString('es-AR', {
+  // Fechas "solo día" (YYYY-MM-DD) se parsean en horario local para evitar
+  // el corrimiento de un día que provoca `new Date(value)` al interpretarlas como UTC.
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnlyMatch
+    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+    : new Date(value);
+  return date.toLocaleDateString('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -165,6 +175,8 @@ export default function NoConformidadDetailPage() {
   const [sectores, setSectores] = useState<SectorTipo[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [archivos, setArchivos] = useState<NoConformidadArchivo[]>([]);
+  const [ordenes, setOrdenes] = useState<OrdenDisponible[]>([]);
+  const [requisitosPuntuales, setRequisitosPuntuales] = useState<RequisitoPuntual[]>([]);
 
   const [sectorTipoId, setSectorTipoId] = useState<number | ''>('');
   const [descripcion, setDescripcion] = useState('');
@@ -175,8 +187,10 @@ export default function NoConformidadDetailPage() {
   const [analisisCausaRaiz, setAnalisisCausaRaiz] = useState('');
   const [accionPropuesta, setAccionPropuesta] = useState('');
   const [plazo, setPlazo] = useState('');
+  const [fechaReclamo, setFechaReclamo] = useState('');
   const [selectedCargoIds, setSelectedCargoIds] = useState<number[]>([]);
   const [selectedCargoToAdd, setSelectedCargoToAdd] = useState<number | ''>('');
+  const [ordenId, setOrdenId] = useState<string>('');
 
   const [cumplimientoAccion, setCumplimientoAccion] = useState<'SI' | 'NO'>('SI');
   const [cumplimientoEnPlazo, setCumplimientoEnPlazo] = useState<'SI' | 'NO'>('SI');
@@ -192,17 +206,21 @@ export default function NoConformidadDetailPage() {
     }
     setLoading(true);
     try {
-      const [detailData, sectoresData, cargosData, archivosData] = await Promise.all([
+      const [detailData, sectoresData, cargosData, archivosData, ordenesData, requisitosData] = await Promise.all([
         getNoConformidadDetail(ncId),
         getSectoresTipo(true),
         getCargos(true),
         getNoConformidadArchivos(ncId),
+        getOrdenesDisponibles(),
+        getRequisitosPuntuales(true),
       ]);
 
       setDetail(detailData);
       setSectores(sectoresData);
       setCargos(cargosData);
       setArchivos(archivosData);
+      setOrdenes(ordenesData);
+      setRequisitosPuntuales(requisitosData);
 
       setSectorTipoId(detailData.sector_tipo_id ?? '');
       setDescripcion(detailData.descripcion || '');
@@ -220,10 +238,12 @@ export default function NoConformidadDetailPage() {
       setAnalisisCausaRaiz(detailData.analisis_causa_raiz || '');
       setAccionPropuesta(detailData.accion_propuesta || '');
       setPlazo(detailData.plazo || '');
+      setFechaReclamo(detailData.fecha_reclamo || '');
       setSelectedCargoIds(detailData.responsables.map((r) => r.id));
       setSelectedCargoToAdd('');
       setCumplimientoAccion(detailData.cumplimiento_accion === false ? 'NO' : 'SI');
       setCumplimientoEnPlazo(detailData.cumplimiento_en_plazo === false ? 'NO' : 'SI');
+      setOrdenId(detailData.orden_id ?? '');
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'No se pudo cargar el detalle');
       navigate('/admin/no-conformidades');
@@ -311,6 +331,8 @@ export default function NoConformidadDetailPage() {
         analisis_causa_raiz: analisisCausaRaiz,
         accion_propuesta: accionPropuesta,
         plazo,
+        fecha_reclamo: fechaReclamo || null,
+        orden_id: ordenId || null,
       });
 
       const withResponsables = await updateNoConformidadResponsables(detail.id, selectedCargoIds);
@@ -325,7 +347,7 @@ export default function NoConformidadDetailPage() {
 
   const handleCloseCase = async () => {
     if (!detail || !closeReady) return;
-    if (!confirm('Confirma cerrar este caso?')) return;
+    if (!confirm('Confirma cerrar este Detalle Caso?')) return;
     setClosing(true);
     try {
       const closed = await closeNoConformidad(detail.id, {
@@ -402,7 +424,7 @@ export default function NoConformidadDetailPage() {
             >
               <ArrowLeft className="h-4 w-4" /> Volver al listado
             </button>
-            <h3 className="text-xl font-bold text-slate-800">No Conformidad #{detail.id}</h3>
+            <h3 className="text-xl font-bold text-slate-800">Informe Caso #{detail.id}</h3>
             <p className="text-sm text-slate-500 mt-1">Completá la ficha y cerrá el caso cuando estén todos los campos obligatorios.</p>
           </div>
 
@@ -416,23 +438,55 @@ export default function NoConformidadDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="space-y-4">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <h4 className="font-semibold text-slate-900">Identificación de la No Conformidad</h4>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sector/Tipo</label>
-            <select
-              disabled={!canEdit}
-              value={sectorTipoId}
-              onChange={(e) => setSectorTipoId(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-            >
-              <option value="">Seleccionar...</option>
-              {sectores.map((sector) => (
-                <option key={sector.id} value={sector.id}>{sector.nombre}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Sector/Tipo</label>
+              <select
+                disabled={!canEdit}
+                value={sectorTipoId}
+                onChange={(e) => setSectorTipoId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+              >
+                <option value="">Seleccionar...</option>
+                {sectores.map((sector) => (
+                  <option key={sector.id} value={sector.id}>{sector.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Carpeta vinculada (Gestor de Documentos)
+              </label>
+              <SearchableSelect
+                disabled={!canEdit}
+                value={ordenId}
+                onChange={setOrdenId}
+                placeholder="Buscar carpeta por número o empresa..."
+                emptyLabel="No hay carpetas que coincidan."
+                options={ordenes.map((orden) => ({
+                  value: orden.id,
+                  label: orden.numero_orden,
+                  sublabel: orden.empresa_nombre || undefined,
+                }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de Reclamo</label>
+              <input
+                type="date"
+                disabled={!canEdit}
+                value={fechaReclamo}
+                onChange={(e) => setFechaReclamo(e.target.value)}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+              />
+              <p className="text-xs text-slate-400 mt-1">Puede diferir de la fecha de apertura de la carpeta.</p>
+            </div>
           </div>
 
           <div>
@@ -441,184 +495,189 @@ export default function NoConformidadDetailPage() {
               disabled={!canEdit}
               value={descripcion}
               onChange={setDescripcion}
-              minHeight={96}
+              minHeight={80}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Requerimiento No Cumplido - ISO 9001</label>
-            <select
-              disabled={!canEdit}
-              value={isoSection}
-              onChange={(e) => {
-                setIsoSection(e.target.value);
-                setIsoRequirement('');
-              }}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-            >
-              <option value="">Seleccionar inciso...</option>
-              {ISO_9001_STRUCTURE.map((item) => (
-                <option key={item.section} value={item.section}>{item.section}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Requisito del inciso seleccionado</label>
-            <select
-              disabled={!canEdit || !selectedIsoSection}
-              value={isoRequirement}
-              onChange={(e) => setIsoRequirement(e.target.value)}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-            >
-              <option value="">Seleccionar requisito...</option>
-              {selectedIsoSection?.requirements.map((requirement) => (
-                <option key={requirement} value={requirement}>{requirement}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Requisito puntual que no cumple</label>
-            <input
-              type="text"
-              disabled={!canEdit || !isoRequirement}
-              value={isoSpecificRequirement}
-              onChange={(e) => setIsoSpecificRequirement(e.target.value)}
-              placeholder="Ej: falta de evidencia de control de proveedores críticos"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Primero seleccioná inciso y requisito; luego detallá el incumplimiento puntual.
-            </p>
-          </div>
-
-          <div className="pt-1 border-t border-slate-100 space-y-3">
-            <h5 className="text-sm font-semibold text-slate-800">Evidencia Objetiva (Adjuntos)</h5>
-            <p className="text-xs text-slate-500">
-              Adjuntá uno o más archivos. La descripción es opcional para agregar un comentario adicional.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="pt-3 border-t border-slate-100 space-y-4">
+            <h5 className="text-sm font-semibold text-slate-800">Requerimiento No Cumplido - ISO 9001</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <input
-                  type="file"
-                  disabled={!canEdit || uploadingFile}
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm"
-                />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  disabled={!canEdit || uploadingFile}
-                  value={archivoDescripcion}
-                  onChange={(e) => setArchivoDescripcion(e.target.value)}
-                  placeholder="Descripción adicional (opcional)"
+                <label className="block text-sm font-medium text-slate-700 mb-1">Inciso</label>
+                <select
+                  disabled={!canEdit}
+                  value={isoSection}
+                  onChange={(e) => {
+                    setIsoSection(e.target.value);
+                    setIsoRequirement('');
+                  }}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-                />
+                >
+                  <option value="">Seleccionar inciso...</option>
+                  {ISO_9001_STRUCTURE.map((item) => (
+                    <option key={item.section} value={item.section}>{item.section}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Requisito del inciso seleccionado</label>
+                <select
+                  disabled={!canEdit || !selectedIsoSection}
+                  value={isoRequirement}
+                  onChange={(e) => setIsoRequirement(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+                >
+                  <option value="">Seleccionar requisito...</option>
+                  {selectedIsoSection?.requirements.map((requirement) => (
+                    <option key={requirement} value={requirement}>{requirement}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Requisito puntual que no cumple</label>
+              <SearchableSelect
+                disabled={!canEdit || !isoRequirement}
+                value={isoSpecificRequirement}
+                onChange={setIsoSpecificRequirement}
+                placeholder="Buscar o escribir requisito puntual..."
+                emptyLabel="Sin coincidencias. Podés escribir uno nuevo o cargarlo en Catálogos."
+                allowCustom
+                options={requisitosPuntuales.map((r) => ({ value: r.nombre, label: r.nombre }))}
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Primero seleccioná inciso y requisito; luego buscá o escribí el incumplimiento puntual.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h4 className="font-semibold text-slate-900">Evidencia Objetiva (Adjuntos)</h4>
+          <p className="text-xs text-slate-500">
+            Adjuntá uno o más archivos. La descripción es opcional para agregar un comentario adicional.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-start">
+            <input
+              type="file"
+              disabled={!canEdit || uploadingFile}
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="w-full text-sm"
+            />
+            <input
+              type="text"
+              disabled={!canEdit || uploadingFile}
+              value={archivoDescripcion}
+              onChange={(e) => setArchivoDescripcion(e.target.value)}
+              placeholder="Descripción adicional (opcional)"
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+            />
             <button
               type="button"
               disabled={!canEdit || !selectedFile || uploadingFile}
               onClick={handleUploadArchivo}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
             >
               <Upload className="h-4 w-4" /> {uploadingFile ? 'Subiendo...' : 'Subir adjunto'}
             </button>
-
-            {archivos.length === 0 ? (
-              <p className="text-sm text-slate-400">No hay adjuntos cargados.</p>
-            ) : (
-              <ul className="space-y-2">
-                {archivos.map((archivo) => (
-                  <li key={archivo.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/60">
-                    <Paperclip className="h-4 w-4 text-slate-500" />
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={archivo.archivo_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-blue-600 hover:underline truncate block"
-                      >
-                        {archivo.archivo_url.split('/').pop()}
-                      </a>
-                      <p className="text-xs text-slate-500">
-                        {archivo.descripcion || 'Sin descripción'} • {formatDate(archivo.fecha_subida)}
-                      </p>
-                    </div>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteArchivo(archivo.id)}
-                        disabled={deletingArchivoId === archivo.id}
-                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg disabled:opacity-50"
-                        title="Eliminar adjunto"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
+
+          {archivos.length === 0 ? (
+            <p className="text-sm text-slate-400">No hay adjuntos cargados.</p>
+          ) : (
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {archivos.map((archivo) => (
+                <li key={archivo.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/60">
+                  <Paperclip className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={archivo.archivo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-blue-600 hover:underline truncate block"
+                    >
+                      {archivo.archivo_url.split('/').pop()}
+                    </a>
+                    <p className="text-xs text-slate-500 truncate">
+                      {archivo.descripcion || 'Sin descripción'} • {formatDate(archivo.fecha_subida)}
+                    </p>
+                  </div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteArchivo(archivo.id)}
+                      disabled={deletingArchivoId === archivo.id}
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg disabled:opacity-50 flex-shrink-0"
+                      title="Eliminar adjunto"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <h4 className="font-semibold text-slate-900">Acción Reactiva</h4>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Solución Inmediata</label>
-            <AutoTextarea
-              disabled={!canEdit}
-              value={solucionInmediata}
-              onChange={setSolucionInmediata}
-              minHeight={96}
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Solución Inmediata</label>
+              <AutoTextarea
+                disabled={!canEdit}
+                value={solucionInmediata}
+                onChange={setSolucionInmediata}
+                minHeight={80}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Análisis Causa Raíz</label>
-            <AutoTextarea
-              disabled={!canEdit}
-              value={analisisCausaRaiz}
-              onChange={setAnalisisCausaRaiz}
-              minHeight={96}
-            />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Análisis Causa Raíz</label>
+              <AutoTextarea
+                disabled={!canEdit}
+                value={analisisCausaRaiz}
+                onChange={setAnalisisCausaRaiz}
+                minHeight={80}
+              />
+            </div>
           </div>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <h4 className="font-semibold text-slate-900">Acción Correctiva</h4>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Plazo de Cierre</label>
-            <input
-              type="date"
-              disabled={!canEdit}
-              value={plazo}
-              onChange={(e) => setPlazo(e.target.value)}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Plazo de Cierre</label>
+              <input
+                type="date"
+                disabled={!canEdit}
+                value={plazo}
+                onChange={(e) => setPlazo(e.target.value)}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Acción Propuesta</label>
+              <AutoTextarea
+                disabled={!canEdit}
+                value={accionPropuesta}
+                onChange={setAccionPropuesta}
+                minHeight={44}
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Acción Propuesta</label>
-            <AutoTextarea
-              disabled={!canEdit}
-              value={accionPropuesta}
-              onChange={setAccionPropuesta}
-              minHeight={96}
-            />
-          </div>
-
-          <div>
+          <div className="pt-3 border-t border-slate-100">
             <label className="block text-sm font-medium text-slate-700 mb-2">Responsable(s)</label>
-            <div className="space-y-3">
-              <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row md:items-start gap-3">
+              <div className="flex gap-2 md:w-80 flex-shrink-0">
                 <select
                   disabled={!canEdit || availableCargos.length === 0}
                   value={selectedCargoToAdd}
@@ -641,9 +700,9 @@ export default function NoConformidadDetailPage() {
               </div>
 
               {selectedResponsables.length === 0 ? (
-                <p className="text-xs text-slate-400">Sin responsables asignados.</p>
+                <p className="text-xs text-slate-400 pt-2">Sin responsables asignados.</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {selectedResponsables.map((cargo) => (
                     <span key={cargo.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
                       {cargo.nombre}
@@ -666,8 +725,10 @@ export default function NoConformidadDetailPage() {
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-          <h4 className="font-semibold text-slate-900">Seguimiento y Control</h4>
-          <p className="text-sm text-slate-500">Estos campos se registran al cerrar el caso.</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h4 className="font-semibold text-slate-900">Seguimiento y Control</h4>
+            <p className="text-xs text-slate-500">Estos campos se registran al cerrar el caso.</p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

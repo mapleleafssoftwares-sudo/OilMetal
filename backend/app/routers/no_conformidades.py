@@ -8,6 +8,7 @@ from app.schemas.schemas import (
     UserProfile,
     SectorTipoCreate,
     CargoCreate,
+    RequisitoPuntualCreate,
     NoConformidadCreate,
     NoConformidadListItem,
     NoConformidadDetail,
@@ -17,7 +18,7 @@ from app.schemas.schemas import (
     NoConformidadResponsable,
     NoConformidadArchivo,
 )
-from app.routers.auth import get_current_admin, get_current_internal_user
+from app.routers.auth import get_current_admin, get_current_internal_user, get_current_user
 from app.core.supabase_client import get_supabase_admin_client
 from app.core.config import settings
 
@@ -53,7 +54,7 @@ def _estado_no_conformidad(row) -> str:
 def _get_nc_or_404(supabase, nc_id: int):
     res = (
         supabase.table("no_conformidades")
-        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, orden_id, sector_tipo:sectores_tipo(id, nombre)")
         .eq("id", nc_id)
         .limit(1)
         .execute()
@@ -92,16 +93,32 @@ def _get_archivos(supabase, nc_id: int):
     return [NoConformidadArchivo(**row) for row in (res.data or [])]
 
 
+def _resolve_orden_numero(supabase, orden_id):
+    """Resolve the numero_orden for a given orden_id UUID."""
+    if not orden_id:
+        return None
+    try:
+        res = supabase.table("gestion_ordenes").select("numero_orden").eq("id", str(orden_id)).limit(1).execute()
+        if res.data:
+            return res.data[0].get("numero_orden")
+    except Exception:
+        pass
+    return None
+
+
 def _to_detail_model(supabase, row):
     sector = row.get("sector_tipo") or {}
     if isinstance(sector, list):
         sector = sector[0] if sector else {}
+    orden_id = row.get("orden_id")
+    orden_numero = _resolve_orden_numero(supabase, orden_id)
     return NoConformidadDetail(
         id=row["id"],
         sector_tipo_id=row.get("sector_tipo_id"),
         sector_tipo_nombre=sector.get("nombre"),
         fecha_apertura=row["fecha_apertura"],
         fecha_cierre=row.get("fecha_cierre"),
+        fecha_reclamo=_to_date_only(row.get("fecha_reclamo")),
         descripcion=row.get("descripcion"),
         evidencia_objetiva=row.get("evidencia_objetiva"),
         solucion_inmediata=row.get("solucion_inmediata"),
@@ -113,7 +130,34 @@ def _to_detail_model(supabase, row):
         estado=_estado_no_conformidad(row),
         responsables=_get_responsables(supabase, row["id"]),
         archivos=_get_archivos(supabase, row["id"]),
+        orden_id=str(orden_id) if orden_id else None,
+        orden_numero=orden_numero,
     )
+
+
+@router.get("/by-orden/{orden_id}", response_model=list[NoConformidadDetail])
+def list_no_conformidades_by_orden(orden_id: str, current_user: UserProfile = Depends(get_current_user)):
+    """Devuelve las no conformidades vinculadas a una carpeta (orden) del gestor de documentos.
+
+    Los consultores (usuarios externos) solo pueden ver las no conformidades
+    de carpetas que pertenezcan a su propia empresa.
+    """
+    supabase = get_supabase_admin_client()
+
+    if current_user.rol == "consultor":
+        orden_res = supabase.table("gestion_ordenes").select("empresa_id").eq("id", orden_id).limit(1).execute()
+        if not orden_res.data or str(orden_res.data[0].get("empresa_id")) != str(current_user.empresa_id):
+            raise HTTPException(status_code=403, detail="No tenés acceso a esta carpeta")
+
+    res = (
+        supabase.table("no_conformidades")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .eq("orden_id", orden_id)
+        .order("id", desc=True)
+        .execute()
+    )
+    rows = res.data or []
+    return [_to_detail_model(supabase, row) for row in rows]
 
 
 @router.get("/{nc_id}/archivos", response_model=list[NoConformidadArchivo])
@@ -297,20 +341,97 @@ def deactivate_cargo(cargo_id: int, current_user: UserProfile = Depends(get_curr
     return {"ok": True}
 
 
+@router.get("/requisitos-puntuales")
+def list_requisitos_puntuales(activos: bool = True, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    query = supabase.table("requisitos_puntuales").select("id, nombre, activo").order("nombre")
+    if activos:
+        query = query.eq("activo", True)
+    res = query.execute()
+    return res.data or []
+
+
+@router.post("/requisitos-puntuales")
+def create_requisito_puntual(body: RequisitoPuntualCreate, current_user: UserProfile = Depends(get_current_admin)):
+    nombre = body.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+    supabase = get_supabase_admin_client()
+    try:
+        res = supabase.table("requisitos_puntuales").insert({"nombre": nombre, "activo": True}).execute()
+        return res.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo crear el Requisito Puntual: {str(e)}")
+
+
+@router.put("/requisitos-puntuales/{requisito_id}")
+def update_requisito_puntual(requisito_id: int, body: RequisitoPuntualCreate, current_user: UserProfile = Depends(get_current_admin)):
+    nombre = body.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+    supabase = get_supabase_admin_client()
+    res = supabase.table("requisitos_puntuales").update({"nombre": nombre}).eq("id", requisito_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Requisito Puntual no encontrado")
+    return res.data[0]
+
+
+@router.delete("/requisitos-puntuales/{requisito_id}")
+def deactivate_requisito_puntual(requisito_id: int, current_user: UserProfile = Depends(get_current_admin)):
+    supabase = get_supabase_admin_client()
+    res = supabase.table("requisitos_puntuales").update({"activo": False}).eq("id", requisito_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Requisito Puntual no encontrado")
+    return {"ok": True}
+
+
+@router.get("/ordenes-disponibles")
+def list_ordenes_disponibles(current_user: UserProfile = Depends(get_current_internal_user)):
+    """Devuelve las carpetas (ordenes) del gestor de documentos para el selector de vinculación."""
+    supabase = get_supabase_admin_client()
+    try:
+        res = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("numero_orden").execute()
+        result = []
+        for row in (res.data or []):
+            empresa = row.get("empresa") or {}
+            if isinstance(empresa, list):
+                empresa = empresa[0] if empresa else {}
+            result.append({
+                "id": str(row["id"]),
+                "numero_orden": row.get("numero_orden"),
+                "empresa_nombre": empresa.get("nombre"),
+            })
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudieron obtener las carpetas: {str(e)}")
+
+
 @router.get("", response_model=list[NoConformidadListItem])
 def list_no_conformidades(current_user: UserProfile = Depends(get_current_internal_user)):
     supabase = get_supabase_admin_client()
     res = (
         supabase.table("no_conformidades")
-        .select("id, fecha_apertura, fecha_cierre, plazo, sector_tipo_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, fecha_apertura, fecha_cierre, plazo, sector_tipo_id, orden_id, sector_tipo:sectores_tipo(id, nombre)")
         .order("id", desc=True)
         .execute()
     )
     rows = res.data or []
 
+    # Batch-resolve orden numbers to avoid N+1 queries
+    orden_ids = list({row.get("orden_id") for row in rows if row.get("orden_id")})
+    orden_map: dict = {}
+    if orden_ids:
+        try:
+            ord_res = supabase.table("gestion_ordenes").select("id, numero_orden").in_("id", orden_ids).execute()
+            for o in (ord_res.data or []):
+                orden_map[str(o["id"])] = o.get("numero_orden")
+        except Exception:
+            pass
+
     result = []
     for row in rows:
         sector = row.get("sector_tipo") or {}
+        orden_id = row.get("orden_id")
         result.append(
             NoConformidadListItem(
                 id=row["id"],
@@ -320,6 +441,8 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
                 sector_tipo_id=row.get("sector_tipo_id"),
                 sector_tipo_nombre=sector.get("nombre"),
                 estado=_estado_no_conformidad(row),
+                orden_id=str(orden_id) if orden_id else None,
+                orden_numero=orden_map.get(str(orden_id)) if orden_id else None,
             )
         )
     return result
@@ -400,6 +523,25 @@ def update_no_conformidad(nc_id: int, body: NoConformidadUpdate, current_user: U
 
     if body.plazo is not None:
         patch["plazo"] = body.plazo or None
+
+    if body.fecha_reclamo is not None:
+        patch["fecha_reclamo"] = body.fecha_reclamo or None
+
+    # Vincular / desvincular carpeta del gestor de documentos
+    if body.orden_id is not None:
+        if body.orden_id == "":
+            patch["orden_id"] = None
+        else:
+            # Verificar que la orden existe
+            try:
+                ord_res = supabase.table("gestion_ordenes").select("id").eq("id", body.orden_id).limit(1).execute()
+                if not ord_res.data:
+                    raise HTTPException(status_code=400, detail="Carpeta (orden) no encontrada")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(status_code=400, detail="Error al verificar la carpeta")
+            patch["orden_id"] = body.orden_id
 
     if patch:
         patch["updated_at"] = datetime.now(timezone.utc).isoformat()

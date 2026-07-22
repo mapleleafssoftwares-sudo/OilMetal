@@ -4,24 +4,34 @@ import { AlertTriangle, CalendarDays, Plus, Search, X, LibraryBig, Pencil, Trash
 import {
   createCargo,
   createNoConformidad,
+  createRequisitoPuntual,
   createSectorTipo,
   deleteCargo,
+  deleteRequisitoPuntual,
   deleteSectorTipo,
   getCargos,
   getNoConformidades,
+  getRequisitosPuntuales,
   getSectoresTipo,
   updateCargo,
+  updateRequisitoPuntual,
   updateSectorTipo,
 } from '../services/noConformidades';
 import type { NoConformidadListItem, SectorTipo } from '../types/noConformidades';
-import type { Cargo } from '../types/noConformidades';
+import type { Cargo, RequisitoPuntual } from '../types/noConformidades';
 import { useAuthStore } from '../store/useAuthStore';
 
 type Tab = 'casos' | 'catalogos';
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
-  return new Date(value).toLocaleDateString('es-AR', {
+  // Fechas "solo día" (YYYY-MM-DD) se parsean en horario local para evitar
+  // el corrimiento de un día que provoca `new Date(value)` al interpretarlas como UTC.
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnlyMatch
+    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+    : new Date(value);
+  return date.toLocaleDateString('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -38,6 +48,7 @@ export default function NoConformidadesPage() {
   const [items, setItems] = useState<NoConformidadListItem[]>([]);
   const [sectores, setSectores] = useState<SectorTipo[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [requisitosPuntuales, setRequisitosPuntuales] = useState<RequisitoPuntual[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -49,12 +60,16 @@ export default function NoConformidadesPage() {
 
   const [newSectorNombre, setNewSectorNombre] = useState('');
   const [newCargoNombre, setNewCargoNombre] = useState('');
+  const [newRequisitoNombre, setNewRequisitoNombre] = useState('');
   const [savingSector, setSavingSector] = useState(false);
   const [savingCargo, setSavingCargo] = useState(false);
+  const [savingRequisito, setSavingRequisito] = useState(false);
   const [editingSectorId, setEditingSectorId] = useState<number | null>(null);
   const [editingSectorNombre, setEditingSectorNombre] = useState('');
   const [editingCargoId, setEditingCargoId] = useState<number | null>(null);
   const [editingCargoNombre, setEditingCargoNombre] = useState('');
+  const [editingRequisitoId, setEditingRequisitoId] = useState<number | null>(null);
+  const [editingRequisitoNombre, setEditingRequisitoNombre] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -81,16 +96,19 @@ export default function NoConformidadesPage() {
   const loadCatalogs = async () => {
     setLoadingCatalogs(true);
     try {
-      const [sectoresData, cargosData] = await Promise.all([
+      const [sectoresData, cargosData, requisitosData] = await Promise.all([
         getSectoresTipo(true),
         getCargos(true),
+        getRequisitosPuntuales(true),
       ]);
       setSectores(sectoresData);
       setCargos(cargosData);
+      setRequisitosPuntuales(requisitosData);
     } catch (error) {
       console.error(error);
       setSectores([]);
       setCargos([]);
+      setRequisitosPuntuales([]);
     } finally {
       setLoadingCatalogs(false);
     }
@@ -110,6 +128,7 @@ export default function NoConformidadesPage() {
       String(item.id).includes(q)
       || (item.sector_tipo_nombre || '').toLowerCase().includes(q)
       || item.estado.toLowerCase().includes(q)
+      || (item.orden_numero || '').toLowerCase().includes(q)
     );
   }, [items, search]);
 
@@ -220,6 +239,46 @@ export default function NoConformidadesPage() {
     }
   };
 
+  const handleCreateRequisito = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRequisitoNombre.trim()) return;
+    setSavingRequisito(true);
+    try {
+      await createRequisitoPuntual(newRequisitoNombre.trim());
+      setNewRequisitoNombre('');
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo crear el Requisito Puntual');
+    } finally {
+      setSavingRequisito(false);
+    }
+  };
+
+  const handleSaveRequisitoEdit = async (id: number) => {
+    if (!editingRequisitoNombre.trim()) return;
+    setSavingRequisito(true);
+    try {
+      await updateRequisitoPuntual(id, editingRequisitoNombre.trim());
+      setEditingRequisitoId(null);
+      setEditingRequisitoNombre('');
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo actualizar el Requisito Puntual');
+    } finally {
+      setSavingRequisito(false);
+    }
+  };
+
+  const handleDeleteRequisito = async (id: number, nombre: string) => {
+    if (!confirm(`Dar de baja Requisito Puntual "${nombre}"?`)) return;
+    try {
+      await deleteRequisitoPuntual(id);
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo dar de baja el Requisito Puntual');
+    }
+  };
+
   return (
     <section className="space-y-6 max-w-6xl mx-auto w-full">
       {isAdmin && (
@@ -240,7 +299,7 @@ export default function NoConformidadesPage() {
       )}
 
       {tab === 'catalogos' && isAdmin && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h4 className="font-semibold text-slate-900 mb-3">Sector/Tipo</h4>
             <form onSubmit={handleCreateSector} className="flex gap-2 mb-4">
@@ -402,6 +461,87 @@ export default function NoConformidadesPage() {
               </ul>
             )}
           </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h4 className="font-semibold text-slate-900 mb-3">Requisitos Puntuales</h4>
+            <form onSubmit={handleCreateRequisito} className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newRequisitoNombre}
+                onChange={(e) => setNewRequisitoNombre(e.target.value)}
+                placeholder="Nuevo Requisito Puntual"
+                className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm"
+              />
+              <button
+                type="submit"
+                disabled={savingRequisito}
+                className="px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl disabled:opacity-50"
+              >
+                Agregar
+              </button>
+            </form>
+
+            {loadingCatalogs ? (
+              <p className="text-sm text-slate-400">Cargando...</p>
+            ) : requisitosPuntuales.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin registros.</p>
+            ) : (
+              <ul className="space-y-2">
+                {requisitosPuntuales.map((requisito) => (
+                  <li key={requisito.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100">
+                    {editingRequisitoId === requisito.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingRequisitoNombre}
+                          onChange={(e) => setEditingRequisitoNombre(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRequisitoEdit(requisito.id)}
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRequisitoId(null);
+                            setEditingRequisitoNombre('');
+                          }}
+                          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm text-slate-700">{requisito.nombre}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRequisitoId(requisito.id);
+                            setEditingRequisitoNombre(requisito.nombre);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRequisito(requisito.id, requisito.nombre)}
+                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
         </div>
       )}
 
@@ -411,7 +551,7 @@ export default function NoConformidadesPage() {
           <div className="min-w-0">
             <h3 className="text-lg md:text-xl font-semibold text-slate-800 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Reclamos y No Conformidades
+              Seguimiento de Casos
             </h3>
             <p className="mt-1 text-sm text-slate-600">
               Listado general con apertura de casos y seguimiento inicial.
@@ -468,6 +608,7 @@ export default function NoConformidadesPage() {
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha Apertura</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sector/Tipo</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Plazo de Cierre</th>
+                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Carpeta Doc.</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
                   </tr>
@@ -479,6 +620,15 @@ export default function NoConformidadesPage() {
                       <td className="px-6 py-4 text-slate-700">{formatDate(item.fecha_apertura)}</td>
                       <td className="px-6 py-4 text-slate-700">{item.sector_tipo_nombre || '—'}</td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(item.plazo)}</td>
+                      <td className="px-6 py-4">
+                        {item.orden_numero ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            📁 {item.orden_numero}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${item.estado === 'Cerrada' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : item.estado === 'En proceso' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                           {item.estado}
@@ -516,6 +666,12 @@ export default function NoConformidadesPage() {
                     <p className="text-slate-700 text-right">{formatDate(item.fecha_apertura)}</p>
                     <p className="text-slate-500">Plazo</p>
                     <p className="text-slate-700 text-right">{formatDate(item.plazo)}</p>
+                    {item.orden_numero && (
+                      <>
+                        <p className="text-slate-500">Carpeta</p>
+                        <p className="text-amber-700 font-semibold text-right">{item.orden_numero}</p>
+                      </>
+                    )}
                   </div>
                   <button
                     type="button"

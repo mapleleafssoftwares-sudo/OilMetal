@@ -10,6 +10,12 @@ export interface Cargo {
   activo: boolean;
 }
 
+export interface RequisitoPuntual {
+  id: number;
+  nombre: string;
+  activo: boolean;
+}
+
 export interface NoConformidadListItem {
   id: number;
   fecha_apertura: string;
@@ -18,6 +24,8 @@ export interface NoConformidadListItem {
   sector_tipo_id?: number | null;
   sector_tipo_nombre?: string | null;
   estado: 'Abierta' | 'En proceso' | 'Cerrada';
+  orden_id?: string | null;
+  orden_numero?: string | null;
 }
 
 export interface CreateNoConformidadPayload {
@@ -43,6 +51,7 @@ export interface NoConformidadDetail {
   sector_tipo_nombre?: string | null;
   fecha_apertura: string;
   fecha_cierre?: string | null;
+  fecha_reclamo?: string | null;
   descripcion?: string | null;
   evidencia_objetiva?: string | null;
   solucion_inmediata?: string | null;
@@ -54,6 +63,8 @@ export interface NoConformidadDetail {
   estado: 'Abierta' | 'En proceso' | 'Cerrada';
   responsables: NoConformidadResponsable[];
   archivos: NoConformidadArchivo[];
+  orden_id?: string | null;
+  orden_numero?: string | null;
 }
 
 export interface UpdateNoConformidadPayload {
@@ -64,6 +75,8 @@ export interface UpdateNoConformidadPayload {
   analisis_causa_raiz?: string;
   accion_propuesta?: string;
   plazo?: string;
+  fecha_reclamo?: string | null;
+  orden_id?: string | null;
 }
 
 export interface CloseNoConformidadPayload {

@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   SectorTipo,
   Cargo,
+  RequisitoPuntual,
   NoConformidadListItem,
   CreateNoConformidadPayload,
   NoConformidadDetail,
@@ -9,6 +10,12 @@ import type {
   CloseNoConformidadPayload,
   NoConformidadArchivo,
 } from '../types/noConformidades';
+
+export interface OrdenDisponible {
+  id: string;
+  numero_orden: string;
+  empresa_nombre?: string | null;
+}
 
 export async function getSectoresTipo(activos = true): Promise<SectorTipo[]> {
   const res = await api.get('/no-conformidades/sectores-tipo', { params: { activos } });
@@ -46,6 +53,25 @@ export async function updateCargo(id: number, nombre: string): Promise<Cargo> {
 
 export async function deleteCargo(id: number): Promise<void> {
   await api.delete(`/no-conformidades/cargos/${id}`);
+}
+
+export async function getRequisitosPuntuales(activos = true): Promise<RequisitoPuntual[]> {
+  const res = await api.get('/no-conformidades/requisitos-puntuales', { params: { activos } });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createRequisitoPuntual(nombre: string): Promise<RequisitoPuntual> {
+  const res = await api.post('/no-conformidades/requisitos-puntuales', { nombre });
+  return res.data;
+}
+
+export async function updateRequisitoPuntual(id: number, nombre: string): Promise<RequisitoPuntual> {
+  const res = await api.put(`/no-conformidades/requisitos-puntuales/${id}`, { nombre });
+  return res.data;
+}
+
+export async function deleteRequisitoPuntual(id: number): Promise<void> {
+  await api.delete(`/no-conformidades/requisitos-puntuales/${id}`);
 }
 
 export async function getNoConformidades(): Promise<NoConformidadListItem[]> {
@@ -106,4 +132,14 @@ export async function uploadNoConformidadArchivo(
 
 export async function deleteNoConformidadArchivo(id: number, archivoId: number): Promise<void> {
   await api.delete(`/no-conformidades/${id}/archivos/${archivoId}`);
+}
+
+export async function getOrdenesDisponibles(): Promise<OrdenDisponible[]> {
+  const res = await api.get('/no-conformidades/ordenes-disponibles');
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function getNoConformidadesByOrden(ordenId: string): Promise<NoConformidadDetail[]> {
+  const res = await api.get(`/no-conformidades/by-orden/${ordenId}`);
+  return Array.isArray(res.data) ? res.data : [];
 }

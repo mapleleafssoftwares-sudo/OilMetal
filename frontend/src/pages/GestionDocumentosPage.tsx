@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search } from 'lucide-react';
+import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
+import { getNoConformidadesByOrden } from '../services/noConformidades';
+import type { NoConformidadDetail } from '../types/noConformidades';
+import { openInformeNoConformidad } from '../utils/informeNoConformidad';
 
 interface Empresa { id: string; nombre: string; }
 interface Orden { id: string; numero_orden: string; empresa_id: string; empresa?: { id: string; nombre: string }; created_at: string; }
@@ -52,6 +55,7 @@ export default function GestionDocumentosPage() {
   const [openOrden, setOpenOrden] = useState<Orden | null>(null);
   const [docs, setDocs] = useState<Documento[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [ncs, setNcs] = useState<NoConformidadDetail[]>([]);
 
   // Modal nueva OC
   const [showNewOrden, setShowNewOrden] = useState(false);
@@ -118,6 +122,11 @@ export default function GestionDocumentosPage() {
       data.forEach(d => { initial[d.__link_id] = d.__observacion || ''; });
       setEditingObs(initial);
     } catch { setDocs([]); } finally { setLoadingDocs(false); }
+
+    try {
+      const ncData = await getNoConformidadesByOrden(orden.id);
+      setNcs(ncData);
+    } catch { setNcs([]); }
   };
 
   const docsByTipo = (tipo: string) => docs.filter(d => d.__tipo === tipo);
@@ -288,6 +297,37 @@ export default function GestionDocumentosPage() {
                 </div>
               );
             })}
+
+            {ncs.length > 0 && (
+              <div className="border rounded-2xl p-5 border-slate-300 bg-slate-50">
+                <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+                  <h3 className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4" /> No Conformidades
+                  </h3>
+                </div>
+                <ul className="space-y-2">
+                  {ncs.map(nc => (
+                    <li key={nc.id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-slate-200 shadow-sm">
+                      <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-800 font-medium truncate">
+                          NC N° {nc.id}{nc.sector_tipo_nombre ? ` — ${nc.sector_tipo_nombre}` : ''}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Apertura: {new Date(nc.fecha_apertura).toLocaleDateString('es-AR')} · {nc.estado}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => openInformeNoConformidad(nc)}
+                        className="text-xs px-2.5 py-1 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-medium transition-colors"
+                      >
+                        Ver informe
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
