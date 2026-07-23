@@ -25,7 +25,7 @@ export default function AdminLayout() {
     { name: 'Repositorio PDFs', path: '/admin/certificados', icon: FileText },
     { name: 'Gestión de Documentos', path: '/admin/gestion', icon: FolderOpen },
     { name: 'Instructivo', path: '/admin/instructivo', icon: BookOpen },
-    ...(isInternal ? [{ name: 'Reclamos y No Conformidades', path: '/admin/no-conformidades', icon: AlertTriangle }] : []),
+    ...(isInternal ? [{ name: 'Seguimientos de casos (Reclamos y NC)', path: '/admin/no-conformidades', icon: AlertTriangle }] : []),
     ...(isAdmin ? [{ name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings }] : []),
   ];
 
@@ -206,7 +206,7 @@ export default function AdminLayout() {
                   <span className="text-[10px] font-medium leading-tight text-center px-1">
                     {item.name === 'Repositorio PDFs' ? 'PDFs'
                       : item.name === 'Gestión de Documentos' ? 'Documentos'
-                        : item.name === 'Reclamos y No Conformidades' ? 'Reclamos'
+                        : item.name === 'Seguimientos de casos (Reclamos y NC)' ? 'Casos'
                       : item.name === 'Instructivo' ? 'Guía'
                       : 'Usuarios'}
                   </span>

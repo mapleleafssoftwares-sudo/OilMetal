@@ -45,16 +45,14 @@ def _to_date_only(value):
 
 def _estado_no_conformidad(row) -> str:
     if row.get("fecha_cierre"):
-        return "Cerrada"
-    if row.get("plazo"):
-        return "En proceso"
-    return "Abierta"
+        return "Resuelto"
+    return "En proceso"
 
 
 def _get_nc_or_404(supabase, nc_id: int):
     res = (
         supabase.table("no_conformidades")
-        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, sector_tipo:sectores_tipo(id, nombre)")
         .eq("id", nc_id)
         .limit(1)
         .execute()
@@ -130,6 +128,7 @@ def _to_detail_model(supabase, row):
         estado=_estado_no_conformidad(row),
         responsables=_get_responsables(supabase, row["id"]),
         archivos=_get_archivos(supabase, row["id"]),
+        es_no_conformidad=row.get("es_no_conformidad", True),
         orden_id=str(orden_id) if orden_id else None,
         orden_numero=orden_numero,
     )
@@ -151,7 +150,7 @@ def list_no_conformidades_by_orden(orden_id: str, current_user: UserProfile = De
 
     res = (
         supabase.table("no_conformidades")
-        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, sector_tipo:sectores_tipo(id, nombre)")
         .eq("orden_id", orden_id)
         .order("id", desc=True)
         .execute()
@@ -411,20 +410,41 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
     supabase = get_supabase_admin_client()
     res = (
         supabase.table("no_conformidades")
-        .select("id, fecha_apertura, fecha_cierre, plazo, sector_tipo_id, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, fecha_apertura, fecha_cierre, plazo, sector_tipo_id, es_no_conformidad, orden_id, created_by, sector_tipo:sectores_tipo(id, nombre)")
         .order("id", desc=True)
         .execute()
     )
     rows = res.data or []
 
-    # Batch-resolve orden numbers to avoid N+1 queries
+    # Batch-resolve orden -> numero_orden y empresa, para evitar N+1 queries
     orden_ids = list({row.get("orden_id") for row in rows if row.get("orden_id")})
-    orden_map: dict = {}
+    orden_numero_map: dict = {}
+    empresa_map: dict = {}
     if orden_ids:
         try:
-            ord_res = supabase.table("gestion_ordenes").select("id, numero_orden").in_("id", orden_ids).execute()
+            ord_res = (
+                supabase.table("gestion_ordenes")
+                .select("id, numero_orden, empresa:empresas(nombre)")
+                .in_("id", orden_ids)
+                .execute()
+            )
             for o in (ord_res.data or []):
-                orden_map[str(o["id"])] = o.get("numero_orden")
+                orden_numero_map[str(o["id"])] = o.get("numero_orden")
+                empresa = o.get("empresa") or {}
+                if isinstance(empresa, list):
+                    empresa = empresa[0] if empresa else {}
+                empresa_map[str(o["id"])] = empresa.get("nombre")
+        except Exception:
+            pass
+
+    # Batch-resolve created_by -> nombre del usuario que creó el caso
+    creador_ids = list({row.get("created_by") for row in rows if row.get("created_by")})
+    creador_map: dict = {}
+    if creador_ids:
+        try:
+            perfiles_res = supabase.table("perfiles").select("id, nombre").in_("id", creador_ids).execute()
+            for p in (perfiles_res.data or []):
+                creador_map[str(p["id"])] = p.get("nombre")
         except Exception:
             pass
 
@@ -432,6 +452,7 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
     for row in rows:
         sector = row.get("sector_tipo") or {}
         orden_id = row.get("orden_id")
+        created_by = row.get("created_by")
         result.append(
             NoConformidadListItem(
                 id=row["id"],
@@ -441,8 +462,11 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
                 sector_tipo_id=row.get("sector_tipo_id"),
                 sector_tipo_nombre=sector.get("nombre"),
                 estado=_estado_no_conformidad(row),
+                es_no_conformidad=row.get("es_no_conformidad", True),
                 orden_id=str(orden_id) if orden_id else None,
-                orden_numero=orden_map.get(str(orden_id)) if orden_id else None,
+                orden_numero=orden_numero_map.get(str(orden_id)) if orden_id else None,
+                empresa_nombre=empresa_map.get(str(orden_id)) if orden_id else None,
+                created_by_nombre=creador_map.get(str(created_by)) if created_by else None,
             )
         )
     return result
@@ -486,6 +510,7 @@ def create_no_conformidad(body: NoConformidadCreate, current_user: UserProfile =
         sector_tipo_id=row.get("sector_tipo_id"),
         sector_tipo_nombre=sector_nombre,
         estado=_estado_no_conformidad(row),
+        created_by_nombre=current_user.nombre,
     )
 
 
@@ -526,6 +551,9 @@ def update_no_conformidad(nc_id: int, body: NoConformidadUpdate, current_user: U
 
     if body.fecha_reclamo is not None:
         patch["fecha_reclamo"] = body.fecha_reclamo or None
+
+    if body.es_no_conformidad is not None:
+        patch["es_no_conformidad"] = body.es_no_conformidad
 
     # Vincular / desvincular carpeta del gestor de documentos
     if body.orden_id is not None:

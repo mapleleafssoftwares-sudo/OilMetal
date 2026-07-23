@@ -188,6 +188,7 @@ export default function NoConformidadDetailPage() {
   const [accionPropuesta, setAccionPropuesta] = useState('');
   const [plazo, setPlazo] = useState('');
   const [fechaReclamo, setFechaReclamo] = useState('');
+  const [esNoConformidad, setEsNoConformidad] = useState(true);
   const [selectedCargoIds, setSelectedCargoIds] = useState<number[]>([]);
   const [selectedCargoToAdd, setSelectedCargoToAdd] = useState<number | ''>('');
   const [ordenId, setOrdenId] = useState<string>('');
@@ -239,6 +240,7 @@ export default function NoConformidadDetailPage() {
       setAccionPropuesta(detailData.accion_propuesta || '');
       setPlazo(detailData.plazo || '');
       setFechaReclamo(detailData.fecha_reclamo || '');
+      setEsNoConformidad(detailData.es_no_conformidad ?? true);
       setSelectedCargoIds(detailData.responsables.map((r) => r.id));
       setSelectedCargoToAdd('');
       setCumplimientoAccion(detailData.cumplimiento_accion === false ? 'NO' : 'SI');
@@ -257,7 +259,7 @@ export default function NoConformidadDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ncId]);
 
-  const isClosed = detail?.estado === 'Cerrada';
+  const isClosed = detail?.estado === 'Resuelto';
   const isAdmin = user?.rol === 'admin';
   const canEdit = !isClosed;
 
@@ -272,32 +274,33 @@ export default function NoConformidadDetailPage() {
     return `${isoSection} > ${isoRequirement}${puntual ? ` | ${puntual}` : ''}`;
   }, [isoSection, isoRequirement, isoSpecificRequirement]);
 
-  const closeReady = useMemo(() => {
-    if (!sectorTipoId) return false;
-    if (!descripcion.trim()) return false;
-    if (!isoSection) return false;
-    if (!isoRequirement) return false;
-    if (!isoSpecificRequirement.trim()) return false;
-    if (!requisitoNormaIncumplido.trim()) return false;
-    if (!solucionInmediata.trim()) return false;
-    if (!analisisCausaRaiz.trim()) return false;
-    if (!accionPropuesta.trim()) return false;
-    if (!plazo) return false;
-    if (selectedCargoIds.length === 0) return false;
-    return true;
+  const missingCloseFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!sectorTipoId) missing.push('Sector/Tipo');
+    if (!descripcion.trim()) missing.push('Descripción');
+    if (!isoSection) missing.push('Inciso ISO 9001');
+    if (!isoRequirement) missing.push('Requisito del inciso seleccionado');
+    if (!isoSpecificRequirement.trim()) missing.push('Requisito puntual que no cumple');
+    if (!solucionInmediata.trim()) missing.push('Solución Inmediata');
+    if (!analisisCausaRaiz.trim()) missing.push('Análisis Causa Raíz');
+    if (!accionPropuesta.trim()) missing.push('Acción Propuesta');
+    if (!plazo) missing.push('Plazo de Cierre');
+    if (selectedCargoIds.length === 0) missing.push('Al menos un Responsable');
+    return missing;
   }, [
     sectorTipoId,
     descripcion,
     isoSection,
     isoRequirement,
     isoSpecificRequirement,
-    requisitoNormaIncumplido,
     solucionInmediata,
     analisisCausaRaiz,
     accionPropuesta,
     plazo,
     selectedCargoIds,
   ]);
+
+  const closeReady = missingCloseFields.length === 0;
 
   const availableCargos = useMemo(
     () => cargos.filter((cargo) => !selectedCargoIds.includes(cargo.id)),
@@ -319,24 +322,30 @@ export default function NoConformidadDetailPage() {
     setSelectedCargoIds((prev) => prev.filter((idItem) => idItem !== cargoId));
   };
 
+  const persistChanges = async () => {
+    if (!detail) return;
+    const updated = await updateNoConformidad(detail.id, {
+      ...(sectorTipoId ? { sector_tipo_id: Number(sectorTipoId) } : {}),
+      descripcion,
+      evidencia_objetiva: requisitoNormaIncumplido,
+      solucion_inmediata: solucionInmediata,
+      analisis_causa_raiz: analisisCausaRaiz,
+      accion_propuesta: accionPropuesta,
+      plazo,
+      fecha_reclamo: fechaReclamo || null,
+      es_no_conformidad: esNoConformidad,
+      orden_id: ordenId || null,
+    });
+
+    const withResponsables = await updateNoConformidadResponsables(detail.id, selectedCargoIds);
+    setDetail(withResponsables || updated);
+  };
+
   const handleSave = async () => {
     if (!detail) return;
     setSaving(true);
     try {
-      const updated = await updateNoConformidad(detail.id, {
-        ...(sectorTipoId ? { sector_tipo_id: Number(sectorTipoId) } : {}),
-        descripcion,
-        evidencia_objetiva: requisitoNormaIncumplido,
-        solucion_inmediata: solucionInmediata,
-        analisis_causa_raiz: analisisCausaRaiz,
-        accion_propuesta: accionPropuesta,
-        plazo,
-        fecha_reclamo: fechaReclamo || null,
-        orden_id: ordenId || null,
-      });
-
-      const withResponsables = await updateNoConformidadResponsables(detail.id, selectedCargoIds);
-      setDetail(withResponsables || updated);
+      await persistChanges();
       alert('Cambios guardados');
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'No se pudo guardar');
@@ -346,10 +355,17 @@ export default function NoConformidadDetailPage() {
   };
 
   const handleCloseCase = async () => {
-    if (!detail || !closeReady) return;
+    if (!detail) return;
+    if (missingCloseFields.length > 0) {
+      alert(`Para cerrar el caso completá primero:\n\n- ${missingCloseFields.join('\n- ')}`);
+      return;
+    }
     if (!confirm('Confirma cerrar este Detalle Caso?')) return;
     setClosing(true);
     try {
+      // Guarda los cambios pendientes del formulario antes de cerrar: el backend
+      // valida contra lo persistido en la base, no contra el estado en pantalla.
+      await persistChanges();
       const closed = await closeNoConformidad(detail.id, {
         cumplimiento_accion: cumplimientoAccion === 'SI',
         cumplimiento_en_plazo: cumplimientoEnPlazo === 'SI',
@@ -429,7 +445,7 @@ export default function NoConformidadDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${detail.estado === 'Cerrada' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : detail.estado === 'En proceso' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+            <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${detail.estado === 'Resuelto' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
               {detail.estado}
             </span>
             <span className="text-xs text-slate-500">Apertura: {formatDate(detail.fecha_apertura)}</span>
@@ -440,7 +456,19 @@ export default function NoConformidadDetailPage() {
 
       <div className="space-y-4">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-          <h4 className="font-semibold text-slate-900">Identificación de la No Conformidad</h4>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="font-semibold text-slate-900">Identificación del caso</h4>
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={!canEdit}
+                checked={esNoConformidad}
+                onChange={(e) => setEsNoConformidad(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              />
+              No conformidad
+            </label>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -759,31 +787,40 @@ export default function NoConformidadDetailPage() {
         </article>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={handleSave}
-          disabled={isClosed || !canEdit || saving}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-
-        <button
-          onClick={handleCloseCase}
-          disabled={isClosed || !closeReady || closing}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-50"
-        >
-          <CheckCircle2 className="h-4 w-4" /> {closing ? 'Cerrando...' : 'Cerrar Caso'}
-        </button>
-
-        {isClosed && isAdmin && (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={handleReopen}
-            disabled={reopening}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-50"
+            onClick={handleSave}
+            disabled={isClosed || !canEdit || saving}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
-            <RotateCcw className="h-4 w-4" /> {reopening ? 'Reabriendo...' : 'Reabrir Caso'}
+            <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar cambios'}
           </button>
+
+          <button
+            onClick={handleCloseCase}
+            disabled={isClosed || closing}
+            title={missingCloseFields.length > 0 ? `Falta completar: ${missingCloseFields.join(', ')}` : undefined}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" /> {closing ? 'Cerrando...' : 'Cerrar Caso'}
+          </button>
+
+          {isClosed && isAdmin && (
+            <button
+              onClick={handleReopen}
+              disabled={reopening}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-50"
+            >
+              <RotateCcw className="h-4 w-4" /> {reopening ? 'Reabriendo...' : 'Reabrir Caso'}
+            </button>
+          )}
+        </div>
+
+        {!isClosed && missingCloseFields.length > 0 && (
+          <p className="text-xs text-amber-600">
+            Para cerrar el caso todavía falta completar: {missingCloseFields.join(', ')}.
+          </p>
         )}
       </div>
     </section>

@@ -54,6 +54,10 @@ export default function NoConformidadesPage() {
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterCliente, setFilterCliente] = useState('');
+  const [filterVendedor, setFilterVendedor] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterSector, setFilterSector] = useState('');
 
   const [sectorTipoId, setSectorTipoId] = useState<number | ''>('');
   const [plazo, setPlazo] = useState('');
@@ -121,16 +125,45 @@ export default function NoConformidadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  const clienteOptions = useMemo(
+    () => Array.from(new Set(items.map((i) => i.empresa_nombre).filter((v): v is string => !!v))).sort(),
+    [items],
+  );
+  const vendedorOptions = useMemo(
+    () => Array.from(new Set(items.map((i) => i.created_by_nombre).filter((v): v is string => !!v))).sort(),
+    [items],
+  );
+  const sectorOptions = useMemo(
+    () => Array.from(new Set(items.map((i) => i.sector_tipo_nombre).filter((v): v is string => !!v))).sort(),
+    [items],
+  );
+
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) =>
-      String(item.id).includes(q)
-      || (item.sector_tipo_nombre || '').toLowerCase().includes(q)
-      || item.estado.toLowerCase().includes(q)
-      || (item.orden_numero || '').toLowerCase().includes(q)
-    );
-  }, [items, search]);
+    return items.filter((item) => {
+      const matchesSearch = !q || (
+        String(item.id).includes(q)
+        || (item.sector_tipo_nombre || '').toLowerCase().includes(q)
+        || item.estado.toLowerCase().includes(q)
+        || (item.orden_numero || '').toLowerCase().includes(q)
+        || (item.empresa_nombre || '').toLowerCase().includes(q)
+        || (item.created_by_nombre || '').toLowerCase().includes(q)
+      );
+      const matchesCliente = !filterCliente || item.empresa_nombre === filterCliente;
+      const matchesVendedor = !filterVendedor || item.created_by_nombre === filterVendedor;
+      const matchesEstado = !filterEstado || item.estado === filterEstado;
+      const matchesSector = !filterSector || item.sector_tipo_nombre === filterSector;
+      return matchesSearch && matchesCliente && matchesVendedor && matchesEstado && matchesSector;
+    });
+  }, [items, search, filterCliente, filterVendedor, filterEstado, filterSector]);
+
+  const hasActiveFilters = !!(filterCliente || filterVendedor || filterEstado || filterSector);
+  const clearFilters = () => {
+    setFilterCliente('');
+    setFilterVendedor('');
+    setFilterEstado('');
+    setFilterSector('');
+  };
 
   const resetCreateForm = () => {
     setSectorTipoId('');
@@ -280,7 +313,7 @@ export default function NoConformidadesPage() {
   };
 
   return (
-    <section className="space-y-6 max-w-6xl mx-auto w-full">
+    <section className="space-y-6 w-full">
       {isAdmin && (
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
           <button
@@ -587,15 +620,68 @@ export default function NoConformidadesPage() {
             </button>
           </div>
         </div>
+
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <select
+            value={filterCliente}
+            onChange={(e) => setFilterCliente(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          >
+            <option value="">Cliente: todos</option>
+            {clienteOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={filterVendedor}
+            onChange={(e) => setFilterVendedor(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          >
+            <option value="">Vendedor: todos</option>
+            {vendedorOptions.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <select
+            value={filterEstado}
+            onChange={(e) => setFilterEstado(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          >
+            <option value="">Estado: todos</option>
+            <option value="En proceso">En proceso</option>
+            <option value="Resuelto">Resuelto</option>
+          </select>
+          <select
+            value={filterSector}
+            onChange={(e) => setFilterSector(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          >
+            <option value="">Sector: todos</option>
+            {sectorOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="mt-2 flex items-center justify-end">
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+            >
+              <X className="h-3.5 w-3.5" /> Limpiar filtros
+            </button>
+          </div>
+        )}
       </div>
       )}
 
       {tab === 'casos' && (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
-          <p className="text-center text-slate-400 py-12">Cargando Reclamos y No Conformidades...</p>
+          <p className="text-center text-slate-400 py-12">Cargando Seguimientos de casos...</p>
         ) : items.length === 0 ? (
-          <p className="text-center text-slate-400 py-12">No hay registros de Reclamos y No Conformidades.</p>
+          <p className="text-center text-slate-400 py-12">No hay registros de Seguimientos de casos.</p>
         ) : filteredItems.length === 0 ? (
           <p className="text-center text-slate-400 py-12">Sin resultados para "{search}".</p>
         ) : (
@@ -606,7 +692,10 @@ export default function NoConformidadesPage() {
                   <tr className="bg-slate-50 border-b border-slate-100 text-left">
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nro</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha Apertura</th>
+                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendedor</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sector/Tipo</th>
+                    <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">NC</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Plazo de Cierre</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Carpeta Doc.</th>
                     <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
@@ -618,19 +707,14 @@ export default function NoConformidadesPage() {
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-6 py-4 font-semibold text-slate-700">#{item.id}</td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(item.fecha_apertura)}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.empresa_nombre || '—'}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.created_by_nombre || '—'}</td>
                       <td className="px-6 py-4 text-slate-700">{item.sector_tipo_nombre || '—'}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.es_no_conformidad ? 'SI' : 'NO'}</td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(item.plazo)}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.orden_numero || '—'}</td>
                       <td className="px-6 py-4">
-                        {item.orden_numero ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            📁 {item.orden_numero}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${item.estado === 'Cerrada' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : item.estado === 'En proceso' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${item.estado === 'Resuelto' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
                           {item.estado}
                         </span>
                       </td>
@@ -657,11 +741,17 @@ export default function NoConformidadesPage() {
                       <p className="text-sm font-semibold text-slate-800">NC #{item.id}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{item.sector_tipo_nombre || 'Sin sector'}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full border ${item.estado === 'Cerrada' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : item.estado === 'En proceso' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full border ${item.estado === 'Resuelto' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
                       {item.estado}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                    <p className="text-slate-500">Cliente</p>
+                    <p className="text-slate-700 text-right">{item.empresa_nombre || '—'}</p>
+                    <p className="text-slate-500">Vendedor</p>
+                    <p className="text-slate-700 text-right">{item.created_by_nombre || '—'}</p>
+                    <p className="text-slate-500">No Conformidad</p>
+                    <p className="text-slate-700 text-right">{item.es_no_conformidad ? 'SI' : 'NO'}</p>
                     <p className="text-slate-500">Apertura</p>
                     <p className="text-slate-700 text-right">{formatDate(item.fecha_apertura)}</p>
                     <p className="text-slate-500">Plazo</p>
@@ -669,7 +759,7 @@ export default function NoConformidadesPage() {
                     {item.orden_numero && (
                       <>
                         <p className="text-slate-500">Carpeta</p>
-                        <p className="text-amber-700 font-semibold text-right">{item.orden_numero}</p>
+                        <p className="text-slate-700 text-right">{item.orden_numero}</p>
                       </>
                     )}
                   </div>
@@ -694,7 +784,7 @@ export default function NoConformidadesPage() {
           <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100">
               <h4 className="text-lg font-bold text-slate-900">Nuevo Reclamo / No Conformidad</h4>
-              <p className="text-sm text-slate-500 mt-1">Se crea en estado Abierta. Si se define plazo de cierre, quedará en En proceso.</p>
+              <p className="text-sm text-slate-500 mt-1">Se crea en estado En proceso. Al cerrar el caso queda como Resuelto.</p>
             </div>
 
             <form onSubmit={handleCreate} className="p-6 space-y-4">

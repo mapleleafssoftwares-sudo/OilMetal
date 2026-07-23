@@ -109,8 +109,11 @@ class NoConformidadListItem(BaseModel):
     sector_tipo_id: Optional[int] = None
     sector_tipo_nombre: Optional[str] = None
     estado: str
+    es_no_conformidad: bool = True
     orden_id: Optional[str] = None
     orden_numero: Optional[str] = None
+    empresa_nombre: Optional[str] = None
+    created_by_nombre: Optional[str] = None
 
 
 class NoConformidadResponsable(BaseModel):
@@ -143,6 +146,7 @@ class NoConformidadDetail(BaseModel):
     estado: str
     responsables: List[NoConformidadResponsable] = []
     archivos: List[NoConformidadArchivo] = []
+    es_no_conformidad: bool = True
     orden_id: Optional[str] = None
     orden_numero: Optional[str] = None
 
@@ -156,6 +160,7 @@ class NoConformidadUpdate(BaseModel):
     accion_propuesta: Optional[str] = None
     plazo: Optional[str] = None
     fecha_reclamo: Optional[str] = None
+    es_no_conformidad: Optional[bool] = None
     orden_id: Optional[str] = None  # UUID de la orden del gestor de documentos (vacío = desasociar)
 
 

@@ -23,9 +23,12 @@ export interface NoConformidadListItem {
   plazo?: string | null;
   sector_tipo_id?: number | null;
   sector_tipo_nombre?: string | null;
-  estado: 'Abierta' | 'En proceso' | 'Cerrada';
+  estado: 'En proceso' | 'Resuelto';
+  es_no_conformidad: boolean;
   orden_id?: string | null;
   orden_numero?: string | null;
+  empresa_nombre?: string | null;
+  created_by_nombre?: string | null;
 }
 
 export interface CreateNoConformidadPayload {
@@ -60,9 +63,10 @@ export interface NoConformidadDetail {
   plazo?: string | null;
   cumplimiento_accion?: boolean | null;
   cumplimiento_en_plazo?: boolean | null;
-  estado: 'Abierta' | 'En proceso' | 'Cerrada';
+  estado: 'En proceso' | 'Resuelto';
   responsables: NoConformidadResponsable[];
   archivos: NoConformidadArchivo[];
+  es_no_conformidad: boolean;
   orden_id?: string | null;
   orden_numero?: string | null;
 }
@@ -76,6 +80,7 @@ export interface UpdateNoConformidadPayload {
   accion_propuesta?: string;
   plazo?: string;
   fecha_reclamo?: string | null;
+  es_no_conformidad?: boolean;
   orden_id?: string | null;
 }
 
