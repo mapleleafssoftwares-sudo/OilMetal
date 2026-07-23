@@ -300,7 +300,6 @@ export default function NoConformidadDetailPage() {
     selectedCargoIds,
   ]);
 
-  const closeReady = missingCloseFields.length === 0;
 
   const availableCargos = useMemo(
     () => cargos.filter((cargo) => !selectedCargoIds.includes(cargo.id)),
