@@ -37,7 +37,6 @@ const formatDate = (value?: string | null) => {
 
 type IsoRequirement = {
   section: string;
-  requirement: string;
   puntual: string;
 };
 
@@ -110,18 +109,16 @@ const ISO_9001_STRUCTURE = [
 const parseIsoRequirement = (value?: string | null): IsoRequirement | null => {
   if (!value) return null;
   const [leftPart, puntualRaw = ''] = value.split(' | ');
-  const [sectionRaw = '', requirementRaw = ''] = leftPart.split(' > ');
+  // Registros antiguos guardaban "sección > requisito"; ahora solo persiste la sección.
+  const [sectionRaw = ''] = leftPart.split(' > ');
   const section = sectionRaw.trim();
-  const requirement = requirementRaw.trim();
-  if (!section || !requirement) return null;
+  if (!section) return null;
 
   const sectionEntry = ISO_9001_STRUCTURE.find((item) => item.section === section);
   if (!sectionEntry) return null;
-  if (!sectionEntry.requirements.includes(requirement)) return null;
 
   return {
     section,
-    requirement,
     puntual: puntualRaw.trim(),
   };
 };
@@ -181,7 +178,6 @@ export default function NoConformidadDetailPage() {
   const [sectorTipoId, setSectorTipoId] = useState<number | ''>('');
   const [descripcion, setDescripcion] = useState('');
   const [isoSection, setIsoSection] = useState('');
-  const [isoRequirement, setIsoRequirement] = useState('');
   const [isoSpecificRequirement, setIsoSpecificRequirement] = useState('');
   const [solucionInmediata, setSolucionInmediata] = useState('');
   const [analisisCausaRaiz, setAnalisisCausaRaiz] = useState('');
@@ -228,11 +224,9 @@ export default function NoConformidadDetailPage() {
       const parsedIso = parseIsoRequirement(detailData.evidencia_objetiva || '');
       if (parsedIso) {
         setIsoSection(parsedIso.section);
-        setIsoRequirement(parsedIso.requirement);
         setIsoSpecificRequirement(parsedIso.puntual);
       } else {
         setIsoSection('');
-        setIsoRequirement('');
         setIsoSpecificRequirement(detailData.evidencia_objetiva || '');
       }
       setSolucionInmediata(detailData.solucion_inmediata || '');
@@ -263,23 +257,17 @@ export default function NoConformidadDetailPage() {
   const isAdmin = user?.rol === 'admin';
   const canEdit = !isClosed;
 
-  const selectedIsoSection = useMemo(
-    () => ISO_9001_STRUCTURE.find((item) => item.section === isoSection),
-    [isoSection],
-  );
-
   const requisitoNormaIncumplido = useMemo(() => {
-    if (!isoSection || !isoRequirement) return '';
+    if (!isoSection) return '';
     const puntual = isoSpecificRequirement.trim();
-    return `${isoSection} > ${isoRequirement}${puntual ? ` | ${puntual}` : ''}`;
-  }, [isoSection, isoRequirement, isoSpecificRequirement]);
+    return `${isoSection}${puntual ? ` | ${puntual}` : ''}`;
+  }, [isoSection, isoSpecificRequirement]);
 
   const missingCloseFields = useMemo(() => {
     const missing: string[] = [];
     if (!sectorTipoId) missing.push('Sector/Tipo');
     if (!descripcion.trim()) missing.push('Descripción');
     if (!isoSection) missing.push('Inciso ISO 9001');
-    if (!isoRequirement) missing.push('Requisito del inciso seleccionado');
     if (!isoSpecificRequirement.trim()) missing.push('Requisito puntual que no cumple');
     if (!solucionInmediata.trim()) missing.push('Solución Inmediata');
     if (!analisisCausaRaiz.trim()) missing.push('Análisis Causa Raíz');
@@ -291,7 +279,6 @@ export default function NoConformidadDetailPage() {
     sectorTipoId,
     descripcion,
     isoSection,
-    isoRequirement,
     isoSpecificRequirement,
     solucionInmediata,
     analisisCausaRaiz,
@@ -528,45 +515,25 @@ export default function NoConformidadDetailPage() {
 
           <div className="pt-3 border-t border-slate-100 space-y-4">
             <h5 className="text-sm font-semibold text-slate-800">Requerimiento No Cumplido - ISO 9001</h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Inciso</label>
-                <select
-                  disabled={!canEdit}
-                  value={isoSection}
-                  onChange={(e) => {
-                    setIsoSection(e.target.value);
-                    setIsoRequirement('');
-                  }}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-                >
-                  <option value="">Seleccionar inciso...</option>
-                  {ISO_9001_STRUCTURE.map((item) => (
-                    <option key={item.section} value={item.section}>{item.section}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Requisito del inciso seleccionado</label>
-                <select
-                  disabled={!canEdit || !selectedIsoSection}
-                  value={isoRequirement}
-                  onChange={(e) => setIsoRequirement(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
-                >
-                  <option value="">Seleccionar requisito...</option>
-                  {selectedIsoSection?.requirements.map((requirement) => (
-                    <option key={requirement} value={requirement}>{requirement}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Inciso</label>
+              <select
+                disabled={!canEdit}
+                value={isoSection}
+                onChange={(e) => setIsoSection(e.target.value)}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+              >
+                <option value="">Seleccionar inciso...</option>
+                {ISO_9001_STRUCTURE.map((item) => (
+                  <option key={item.section} value={item.section}>{item.section}</option>
+                ))}
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Requisito puntual que no cumple</label>
               <SearchableSelect
-                disabled={!canEdit || !isoRequirement}
+                disabled={!canEdit || !isoSection}
                 value={isoSpecificRequirement}
                 onChange={setIsoSpecificRequirement}
                 placeholder="Buscar o escribir requisito puntual..."
@@ -575,7 +542,7 @@ export default function NoConformidadDetailPage() {
                 options={requisitosPuntuales.map((r) => ({ value: r.nombre, label: r.nombre }))}
               />
               <p className="text-xs text-slate-500 mt-1">
-                Primero seleccioná inciso y requisito; luego buscá o escribí el incumplimiento puntual.
+                Primero seleccioná el inciso; luego buscá o escribí el incumplimiento puntual.
               </p>
             </div>
           </div>
