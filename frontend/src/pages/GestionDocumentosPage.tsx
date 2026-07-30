@@ -311,7 +311,7 @@ export default function GestionDocumentosPage() {
                       <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-800 font-medium truncate">
-                          NC N° {nc.id}{nc.sector_tipo_nombre ? ` — ${nc.sector_tipo_nombre}` : ''}
+                          NC N° {nc.numero_secuencial}{nc.sector_tipo_nombre ? ` — ${nc.sector_tipo_nombre}` : ''}
                         </p>
                         <p className="text-xs text-slate-400">
                           Apertura: {new Date(nc.fecha_apertura).toLocaleDateString('es-AR')} · {nc.estado}

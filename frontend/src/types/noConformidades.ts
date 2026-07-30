@@ -24,6 +24,7 @@ export interface CostoNoCalidad {
 
 export interface NoConformidadListItem {
   id: number;
+  numero_secuencial: number;
   fecha_apertura: string;
   fecha_cierre?: string | null;
   plazo?: string | null;
@@ -63,6 +64,7 @@ export interface NcCosto {
 
 export interface NoConformidadDetail {
   id: number;
+  numero_secuencial: number;
   sector_tipo_id?: number | null;
   sector_tipo_nombre?: string | null;
   fecha_apertura: string;

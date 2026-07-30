@@ -111,6 +111,7 @@ class NoConformidadCreate(BaseModel):
 
 class NoConformidadListItem(BaseModel):
     id: int
+    numero_secuencial: int
     fecha_apertura: datetime
     fecha_cierre: Optional[datetime] = None
     plazo: Optional[str] = None
@@ -154,6 +155,7 @@ class NcCostoUpdate(BaseModel):
 
 class NoConformidadDetail(BaseModel):
     id: int
+    numero_secuencial: int
     sector_tipo_id: Optional[int] = None
     sector_tipo_nombre: Optional[str] = None
     fecha_apertura: datetime

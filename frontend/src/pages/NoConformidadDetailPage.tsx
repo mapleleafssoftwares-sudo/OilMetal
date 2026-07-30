@@ -504,7 +504,7 @@ export default function NoConformidadDetailPage() {
             >
               <ArrowLeft className="h-4 w-4" /> Volver al listado
             </button>
-            <h3 className="text-xl font-bold text-slate-800">Informe Caso #{detail.id}</h3>
+            <h3 className="text-xl font-bold text-slate-800">Informe Caso #{detail.numero_secuencial}</h3>
             <p className="text-sm text-slate-500 mt-1">Completá la ficha y cerrá el caso cuando estén todos los campos obligatorios.</p>
           </div>
 

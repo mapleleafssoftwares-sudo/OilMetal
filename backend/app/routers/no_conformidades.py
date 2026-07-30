@@ -135,6 +135,18 @@ def _resolve_orden_numero(supabase, orden_id):
     return None
 
 
+def _get_numero_secuencial(supabase, nc_id: int) -> int:
+    """Número de caso secuencial y sin saltos (posición cronológica), pensado
+    para mostrar en auditorías en vez del id interno de la base de datos."""
+    res = (
+        supabase.table("no_conformidades")
+        .select("id")
+        .lte("id", nc_id)
+        .execute()
+    )
+    return len(res.data or []) or 1
+
+
 def _to_detail_model(supabase, row):
     sector = row.get("sector_tipo") or {}
     if isinstance(sector, list):
@@ -143,6 +155,7 @@ def _to_detail_model(supabase, row):
     orden_numero = _resolve_orden_numero(supabase, orden_id)
     return NoConformidadDetail(
         id=row["id"],
+        numero_secuencial=_get_numero_secuencial(supabase, row["id"]),
         sector_tipo_id=row.get("sector_tipo_id"),
         sector_tipo_nombre=sector.get("nombre"),
         fecha_apertura=row["fecha_apertura"],
@@ -760,6 +773,9 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
         except Exception:
             pass
 
+    # Numeración secuencial y sin saltos, según orden cronológico de creación
+    numero_map = {row_id: idx + 1 for idx, row_id in enumerate(sorted(row["id"] for row in rows))}
+
     result = []
     for row in rows:
         sector = row.get("sector_tipo") or {}
@@ -768,6 +784,7 @@ def list_no_conformidades(current_user: UserProfile = Depends(get_current_intern
         result.append(
             NoConformidadListItem(
                 id=row["id"],
+                numero_secuencial=numero_map[row["id"]],
                 fecha_apertura=row["fecha_apertura"],
                 fecha_cierre=row.get("fecha_cierre"),
                 plazo=row.get("plazo"),
@@ -816,6 +833,7 @@ def create_no_conformidad(body: NoConformidadCreate, current_user: UserProfile =
     sector_nombre = sector_res.data[0].get("nombre")
     return NoConformidadListItem(
         id=row["id"],
+        numero_secuencial=_get_numero_secuencial(supabase, row["id"]),
         fecha_apertura=row["fecha_apertura"],
         fecha_cierre=row.get("fecha_cierre"),
         plazo=_to_date_only(row.get("plazo")),

@@ -62,7 +62,7 @@ function buildInformeHtml(nc: NoConformidadDetail): string {
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Informe NC-${esc(nc.id)}</title>
+<title>Informe NC-${esc(nc.numero_secuencial)}</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -176,7 +176,7 @@ function buildInformeHtml(nc: NoConformidadDetail): string {
       <img src="${logoUrl}" alt="OilMetal">
       <div>
         <div class="empresa">OilMetal &mdash; Sistema de Gestión de Calidad</div>
-        <div class="titulo">Informe de No Conformidad N&deg; ${esc(nc.id)}</div>
+        <div class="titulo">Informe de No Conformidad N&deg; ${esc(nc.numero_secuencial)}</div>
       </div>
     </div>
     <div class="meta">
@@ -224,7 +224,7 @@ function buildInformeHtml(nc: NoConformidadDetail): string {
 
     <div class="pie">
       <span>Documento generado automáticamente por el sistema de Gestión de Calidad de OilMetal.</span>
-      <span>NC-${esc(nc.id)}</span>
+      <span>NC-${esc(nc.numero_secuencial)}</span>
     </div>
   </div>
 </body>

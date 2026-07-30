@@ -155,7 +155,7 @@ export default function NoConformidadesPage() {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
       const matchesSearch = !q || (
-        String(item.id).includes(q)
+        String(item.numero_secuencial).includes(q)
         || (item.sector_tipo_nombre || '').toLowerCase().includes(q)
         || item.estado.toLowerCase().includes(q)
         || (item.orden_numero || '').toLowerCase().includes(q)
@@ -847,7 +847,7 @@ export default function NoConformidadesPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredItems.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-slate-700">#{item.id}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-700">#{item.numero_secuencial}</td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(item.fecha_apertura)}</td>
                       <td className="px-6 py-4 text-slate-700">{item.empresa_nombre || '—'}</td>
                       <td className="px-6 py-4 text-slate-700">{item.created_by_nombre || '—'}</td>
@@ -880,7 +880,7 @@ export default function NoConformidadesPage() {
                 <div key={item.id} className="px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">NC #{item.id}</p>
+                      <p className="text-sm font-semibold text-slate-800">NC #{item.numero_secuencial}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{item.sector_tipo_nombre || 'Sin sector'}</p>
                     </div>
                     <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full border ${item.estado === 'Resuelto' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
