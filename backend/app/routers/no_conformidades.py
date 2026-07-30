@@ -21,6 +21,11 @@ from app.schemas.schemas import (
     NcCosto,
     NcCostoCreate,
     NcCostoUpdate,
+    DashboardConteoItem,
+    DashboardCostoConceptoItem,
+    DashboardClienteItem,
+    DashboardVendedorItem,
+    NoConformidadesDashboard,
 )
 from app.routers.auth import get_current_admin, get_current_internal_user, get_current_user
 from app.core.supabase_client import get_supabase_admin_client
@@ -557,6 +562,159 @@ def list_ordenes_disponibles(current_user: UserProfile = Depends(get_current_int
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"No se pudieron obtener las carpetas: {str(e)}")
+
+
+@router.get("/dashboard", response_model=NoConformidadesDashboard)
+def get_dashboard(current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+
+    nc_res = (
+        supabase.table("no_conformidades")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, es_no_conformidad, orden_id, created_by, monto_orden_compra, cumplimiento_en_plazo, sector_tipo:sectores_tipo(id, nombre)")
+        .execute()
+    )
+    casos = nc_res.data or []
+
+    total_casos = len(casos)
+    total_no_conformidades = sum(1 for c in casos if c.get("es_no_conformidad", True))
+    total_reclamos = total_casos - total_no_conformidades
+    casos_resueltos = sum(1 for c in casos if c.get("fecha_cierre"))
+    casos_en_proceso = total_casos - casos_resueltos
+    casos_con_carpeta = sum(1 for c in casos if c.get("orden_id"))
+
+    sector_counts: dict = {}
+    for c in casos:
+        sector = c.get("sector_tipo") or {}
+        if isinstance(sector, list):
+            sector = sector[0] if sector else {}
+        nombre = sector.get("nombre") or "Sin sector"
+        sector_counts[nombre] = sector_counts.get(nombre, 0) + 1
+    por_sector = [
+        DashboardConteoItem(nombre=k, cantidad=v)
+        for k, v in sorted(sector_counts.items(), key=lambda x: -x[1])
+    ]
+
+    orden_ids = list({c.get("orden_id") for c in casos if c.get("orden_id")})
+    empresa_por_orden: dict = {}
+    if orden_ids:
+        ord_res = (
+            supabase.table("gestion_ordenes")
+            .select("id, empresa:empresas(nombre)")
+            .in_("id", orden_ids)
+            .execute()
+        )
+        for o in (ord_res.data or []):
+            empresa = o.get("empresa") or {}
+            if isinstance(empresa, list):
+                empresa = empresa[0] if empresa else {}
+            empresa_por_orden[str(o["id"])] = empresa.get("nombre")
+
+    creador_ids = list({c.get("created_by") for c in casos if c.get("created_by")})
+    nombre_por_creador: dict = {}
+    if creador_ids:
+        perfiles_res = supabase.table("perfiles").select("id, nombre").in_("id", creador_ids).execute()
+        for p in (perfiles_res.data or []):
+            nombre_por_creador[str(p["id"])] = p.get("nombre")
+
+    nc_ids = [c["id"] for c in casos]
+    costos_rows = []
+    if nc_ids:
+        costos_res = (
+            supabase.table("nc_costos")
+            .select("no_conformidad_id, monto, costo_no_calidad:costos_no_calidad(nombre)")
+            .in_("no_conformidad_id", nc_ids)
+            .execute()
+        )
+        costos_rows = costos_res.data or []
+
+    costos_por_caso: dict = {}
+    concepto_totales: dict = {}
+    costos_no_calidad_total = 0.0
+    for row in costos_rows:
+        monto = float(row.get("monto") or 0)
+        costos_no_calidad_total += monto
+        nc_id = row.get("no_conformidad_id")
+        costos_por_caso[nc_id] = costos_por_caso.get(nc_id, 0.0) + monto
+        concepto = row.get("costo_no_calidad") or {}
+        if isinstance(concepto, list):
+            concepto = concepto[0] if concepto else {}
+        nombre_concepto = concepto.get("nombre") or "Sin concepto"
+        concepto_totales[nombre_concepto] = concepto_totales.get(nombre_concepto, 0.0) + monto
+
+    costos_por_concepto = [
+        DashboardCostoConceptoItem(nombre=k, monto=round(v, 2))
+        for k, v in sorted(concepto_totales.items(), key=lambda x: -x[1])
+    ]
+
+    monto_total_oc = sum(float(c.get("monto_orden_compra") or 0) for c in casos)
+    utilidad_neta_total = monto_total_oc - costos_no_calidad_total
+    porcentaje_impacto_costos = (
+        round((costos_no_calidad_total / monto_total_oc) * 100, 2) if monto_total_oc > 0 else None
+    )
+
+    cliente_stats: dict = {}
+    for c in casos:
+        orden_id = c.get("orden_id")
+        if not orden_id:
+            continue
+        empresa_nombre = empresa_por_orden.get(str(orden_id)) or "Sin empresa"
+        stats = cliente_stats.setdefault(empresa_nombre, {"cantidad": 0, "monto_oc": 0.0, "costos": 0.0})
+        stats["cantidad"] += 1
+        stats["monto_oc"] += float(c.get("monto_orden_compra") or 0)
+        stats["costos"] += costos_por_caso.get(c["id"], 0.0)
+    por_cliente = [
+        DashboardClienteItem(
+            nombre=k,
+            cantidad_casos=v["cantidad"],
+            monto_oc=round(v["monto_oc"], 2),
+            costos_no_calidad=round(v["costos"], 2),
+        )
+        for k, v in sorted(cliente_stats.items(), key=lambda x: -x[1]["cantidad"])
+    ]
+
+    vendedor_counts: dict = {}
+    for c in casos:
+        created_by = c.get("created_by")
+        nombre = nombre_por_creador.get(str(created_by)) if created_by else None
+        nombre = nombre or "Sin asignar"
+        vendedor_counts[nombre] = vendedor_counts.get(nombre, 0) + 1
+    por_vendedor = [
+        DashboardVendedorItem(nombre=k, cantidad_casos=v)
+        for k, v in sorted(vendedor_counts.items(), key=lambda x: -x[1])
+    ]
+
+    resueltos = [c for c in casos if c.get("fecha_cierre")]
+    en_plazo_count = sum(1 for c in resueltos if c.get("cumplimiento_en_plazo"))
+    porcentaje_en_plazo = round((en_plazo_count / len(resueltos)) * 100, 2) if resueltos else None
+
+    dias_totales = []
+    for c in resueltos:
+        try:
+            apertura = datetime.fromisoformat(str(c["fecha_apertura"]).replace("Z", "+00:00"))
+            cierre = datetime.fromisoformat(str(c["fecha_cierre"]).replace("Z", "+00:00"))
+            dias_totales.append((cierre - apertura).total_seconds() / 86400)
+        except Exception:
+            continue
+    dias_promedio_resolucion = round(sum(dias_totales) / len(dias_totales), 1) if dias_totales else None
+
+    return NoConformidadesDashboard(
+        total_casos=total_casos,
+        total_no_conformidades=total_no_conformidades,
+        total_reclamos=total_reclamos,
+        casos_en_proceso=casos_en_proceso,
+        casos_resueltos=casos_resueltos,
+        casos_con_carpeta_vinculada=casos_con_carpeta,
+        por_sector=por_sector,
+        monto_total_oc=round(monto_total_oc, 2),
+        costos_no_calidad_total=round(costos_no_calidad_total, 2),
+        utilidad_neta_total=round(utilidad_neta_total, 2),
+        porcentaje_impacto_costos=porcentaje_impacto_costos,
+        costos_por_concepto=costos_por_concepto,
+        por_cliente=por_cliente,
+        por_vendedor=por_vendedor,
+        porcentaje_en_plazo=porcentaje_en_plazo,
+        dias_promedio_resolucion=dias_promedio_resolucion,
+    )
 
 
 @router.get("", response_model=list[NoConformidadListItem])

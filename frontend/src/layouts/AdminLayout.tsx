@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LogOut, Settings, FileText, FolderOpen, BookOpen, X, AlertTriangle
+import {
+  LogOut, Settings, FileText, FolderOpen, BookOpen, X, AlertTriangle, LayoutDashboard
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -19,13 +19,14 @@ export default function AdminLayout() {
 
   const isAdmin = user?.rol === 'admin';
   const isInternal = Boolean(user && ['admin', 'vendedor', 'deposito', 'calidad'].includes(user.rol));
-  const hideRouteHeader = location.pathname.includes('/no-conformidades');
+  const hideRouteHeader = location.pathname.includes('/no-conformidades') || location.pathname.includes('/dashboard-casos');
 
   const navItems = [
     { name: 'Repositorio PDFs', path: '/admin/certificados', icon: FileText },
     { name: 'Gestión de Documentos', path: '/admin/gestion', icon: FolderOpen },
     { name: 'Instructivo', path: '/admin/instructivo', icon: BookOpen },
     ...(isInternal ? [{ name: 'Seguimientos de casos (Reclamos y NC)', path: '/admin/no-conformidades', icon: AlertTriangle }] : []),
+    ...(isAdmin ? [{ name: 'Dashboard de Casos', path: '/admin/dashboard-casos', icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ name: 'Gestión de Usuarios', path: '/admin/configuracion', icon: Settings }] : []),
   ];
 
@@ -208,6 +209,7 @@ export default function AdminLayout() {
                       : item.name === 'Gestión de Documentos' ? 'Documentos'
                         : item.name === 'Seguimientos de casos (Reclamos y NC)' ? 'Casos'
                       : item.name === 'Instructivo' ? 'Guía'
+                      : item.name === 'Dashboard de Casos' ? 'Dashboard'
                       : 'Usuarios'}
                   </span>
                 </Link>

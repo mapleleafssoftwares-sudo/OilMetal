@@ -198,3 +198,45 @@ class NoConformidadResponsablesUpdate(BaseModel):
 class NoConformidadCloseRequest(BaseModel):
     cumplimiento_accion: bool
     cumplimiento_en_plazo: bool
+
+
+# ---- Dashboard de Seguimiento de Casos ----
+class DashboardConteoItem(BaseModel):
+    nombre: str
+    cantidad: int
+
+
+class DashboardCostoConceptoItem(BaseModel):
+    nombre: str
+    monto: float
+
+
+class DashboardClienteItem(BaseModel):
+    nombre: str
+    cantidad_casos: int
+    monto_oc: float
+    costos_no_calidad: float
+
+
+class DashboardVendedorItem(BaseModel):
+    nombre: str
+    cantidad_casos: int
+
+
+class NoConformidadesDashboard(BaseModel):
+    total_casos: int
+    total_no_conformidades: int
+    total_reclamos: int
+    casos_en_proceso: int
+    casos_resueltos: int
+    casos_con_carpeta_vinculada: int
+    por_sector: List[DashboardConteoItem] = []
+    monto_total_oc: float
+    costos_no_calidad_total: float
+    utilidad_neta_total: float
+    porcentaje_impacto_costos: Optional[float] = None
+    costos_por_concepto: List[DashboardCostoConceptoItem] = []
+    por_cliente: List[DashboardClienteItem] = []
+    por_vendedor: List[DashboardVendedorItem] = []
+    porcentaje_en_plazo: Optional[float] = None
+    dias_promedio_resolucion: Optional[float] = None

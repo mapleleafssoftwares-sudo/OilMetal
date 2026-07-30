@@ -11,6 +11,7 @@ import type {
   CloseNoConformidadPayload,
   NoConformidadArchivo,
   NcCosto,
+  NoConformidadesDashboard,
 } from '../types/noConformidades';
 
 export interface OrdenDisponible {
@@ -189,4 +190,9 @@ export async function updateNoConformidadCosto(id: number, costoId: number, mont
 
 export async function deleteNoConformidadCosto(id: number, costoId: number): Promise<void> {
   await api.delete(`/no-conformidades/${id}/costos/${costoId}`);
+}
+
+export async function getNoConformidadesDashboard(): Promise<NoConformidadesDashboard> {
+  const res = await api.get('/no-conformidades/dashboard');
+  return res.data;
 }
