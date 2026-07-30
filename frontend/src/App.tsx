@@ -9,22 +9,12 @@ import GestionDocumentosPage from './pages/GestionDocumentosPage';
 import InstructivoPage from './pages/InstructivoPage';
 import NoConformidadesPage from './pages/NoConformidadesPage';
 import NoConformidadDetailPage from './pages/NoConformidadDetailPage';
-import DashboardCasosPage from './pages/DashboardCasosPage';
 
 // Protected Route Component
-const ProtectedRoute = ({
-  children,
-  requireInternal = false,
-  requireAdmin = false,
-}: {
-  children: React.ReactNode;
-  requireInternal?: boolean;
-  requireAdmin?: boolean;
-}) => {
+const ProtectedRoute = ({ children, requireInternal = false }: { children: React.ReactNode, requireInternal?: boolean }) => {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" />;
   if (requireInternal && !INTERNAL_ROLES.includes(user.rol)) return <Navigate to="/" />;
-  if (requireAdmin && user.rol !== 'admin') return <Navigate to="/admin" />;
   return <>{children}</>;
 };
 
@@ -72,14 +62,6 @@ function App() {
             element={
               <ProtectedRoute requireInternal={true}>
                 <NoConformidadDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="dashboard-casos"
-            element={
-              <ProtectedRoute requireInternal={true} requireAdmin={true}>
-                <DashboardCasosPage />
               </ProtectedRoute>
             }
           />

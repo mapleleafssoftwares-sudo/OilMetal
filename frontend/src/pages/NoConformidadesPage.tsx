@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarDays, Plus, Search, X, LibraryBig, Pencil, Trash2, Check } from 'lucide-react';
+import { AlertTriangle, CalendarDays, LayoutDashboard, Plus, Search, X, LibraryBig, Pencil, Trash2, Check } from 'lucide-react';
+import DashboardCasosPage from './DashboardCasosPage';
 import {
   createCargo,
   createCostoNoCalidad,
@@ -25,7 +26,7 @@ import type { NoConformidadListItem, SectorTipo } from '../types/noConformidades
 import type { Cargo, RequisitoPuntual, CostoNoCalidad } from '../types/noConformidades';
 import { useAuthStore } from '../store/useAuthStore';
 
-type Tab = 'casos' | 'catalogos';
+type Tab = 'casos' | 'catalogos' | 'dashboard';
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -380,8 +381,16 @@ export default function NoConformidadesPage() {
           >
             <LibraryBig className="h-4 w-4" /> Catálogos
           </button>
+          <button
+            onClick={() => setTab('dashboard')}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all inline-flex items-center justify-center gap-2 ${tab === 'dashboard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <LayoutDashboard className="h-4 w-4" /> Dashboard
+          </button>
         </div>
       )}
+
+      {tab === 'dashboard' && isAdmin && <DashboardCasosPage />}
 
       {tab === 'catalogos' && isAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
