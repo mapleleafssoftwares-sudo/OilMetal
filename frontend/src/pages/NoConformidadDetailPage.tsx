@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, RotateCcw, Save, Upload, Trash2, Paperclip, Plus, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RotateCcw, Save, Upload, Trash2, Paperclip, Pencil, Plus, X } from 'lucide-react';
 import {
   closeNoConformidad,
+  createNoConformidadCosto,
   deleteNoConformidadArchivo,
+  deleteNoConformidadCosto,
   getCargos,
+  getCostosNoCalidad,
   getNoConformidadArchivos,
   getNoConformidadDetail,
   getOrdenesDisponibles,
@@ -13,12 +16,16 @@ import {
   reopenNoConformidad,
   uploadNoConformidadArchivo,
   updateNoConformidad,
+  updateNoConformidadCosto,
   updateNoConformidadResponsables,
 } from '../services/noConformidades';
 import type { OrdenDisponible } from '../services/noConformidades';
 import { useAuthStore } from '../store/useAuthStore';
-import type { Cargo, NoConformidadArchivo, NoConformidadDetail, RequisitoPuntual, SectorTipo } from '../types/noConformidades';
+import type { Cargo, CostoNoCalidad, NcCosto, NoConformidadArchivo, NoConformidadDetail, RequisitoPuntual, SectorTipo } from '../types/noConformidades';
 import SearchableSelect from '../components/SearchableSelect';
+
+const formatMonto = (value: number) =>
+  `U$D ${value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -174,6 +181,8 @@ export default function NoConformidadDetailPage() {
   const [archivos, setArchivos] = useState<NoConformidadArchivo[]>([]);
   const [ordenes, setOrdenes] = useState<OrdenDisponible[]>([]);
   const [requisitosPuntuales, setRequisitosPuntuales] = useState<RequisitoPuntual[]>([]);
+  const [costosNoCalidad, setCostosNoCalidad] = useState<CostoNoCalidad[]>([]);
+  const [costos, setCostos] = useState<NcCosto[]>([]);
 
   const [sectorTipoId, setSectorTipoId] = useState<number | ''>('');
   const [descripcion, setDescripcion] = useState('');
@@ -196,6 +205,15 @@ export default function NoConformidadDetailPage() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [deletingArchivoId, setDeletingArchivoId] = useState<number | null>(null);
 
+  const [montoOrdenCompra, setMontoOrdenCompra] = useState('');
+  const [costoToAddId, setCostoToAddId] = useState<number | ''>('');
+  const [montoToAdd, setMontoToAdd] = useState('');
+  const [addingCosto, setAddingCosto] = useState(false);
+  const [editingCostoId, setEditingCostoId] = useState<number | null>(null);
+  const [editingCostoMonto, setEditingCostoMonto] = useState('');
+  const [savingCostoId, setSavingCostoId] = useState<number | null>(null);
+  const [deletingCostoId, setDeletingCostoId] = useState<number | null>(null);
+
   const loadData = async () => {
     if (!Number.isFinite(ncId)) {
       navigate('/admin/no-conformidades', { replace: true });
@@ -203,13 +221,14 @@ export default function NoConformidadDetailPage() {
     }
     setLoading(true);
     try {
-      const [detailData, sectoresData, cargosData, archivosData, ordenesData, requisitosData] = await Promise.all([
+      const [detailData, sectoresData, cargosData, archivosData, ordenesData, requisitosData, costosNoCalidadData] = await Promise.all([
         getNoConformidadDetail(ncId),
         getSectoresTipo(true),
         getCargos(true),
         getNoConformidadArchivos(ncId),
         getOrdenesDisponibles(),
         getRequisitosPuntuales(true),
+        getCostosNoCalidad(true),
       ]);
 
       setDetail(detailData);
@@ -218,6 +237,9 @@ export default function NoConformidadDetailPage() {
       setArchivos(archivosData);
       setOrdenes(ordenesData);
       setRequisitosPuntuales(requisitosData);
+      setCostosNoCalidad(costosNoCalidadData);
+      setCostos(detailData.costos || []);
+      setMontoOrdenCompra(detailData.monto_orden_compra != null ? String(detailData.monto_orden_compra) : '');
 
       setSectorTipoId(detailData.sector_tipo_id ?? '');
       setDescripcion(detailData.descripcion || '');
@@ -321,6 +343,7 @@ export default function NoConformidadDetailPage() {
       fecha_reclamo: fechaReclamo || null,
       es_no_conformidad: esNoConformidad,
       orden_id: ordenId || null,
+      monto_orden_compra: montoOrdenCompra.trim() ? Number(montoOrdenCompra) : null,
     });
 
     const withResponsables = await updateNoConformidadResponsables(detail.id, selectedCargoIds);
@@ -410,6 +433,61 @@ export default function NoConformidadDetailPage() {
       setDeletingArchivoId(null);
     }
   };
+
+  const handleAddCosto = async () => {
+    if (!detail || !costoToAddId || !montoToAdd.trim()) return;
+    setAddingCosto(true);
+    try {
+      const nuevo = await createNoConformidadCosto(detail.id, Number(costoToAddId), Number(montoToAdd));
+      setCostos((prev) => [...prev, nuevo]);
+      setCostoToAddId('');
+      setMontoToAdd('');
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo agregar el costo');
+    } finally {
+      setAddingCosto(false);
+    }
+  };
+
+  const handleSaveCostoEdit = async (costoId: number) => {
+    if (!detail || !editingCostoMonto.trim()) return;
+    setSavingCostoId(costoId);
+    try {
+      const actualizado = await updateNoConformidadCosto(detail.id, costoId, Number(editingCostoMonto));
+      setCostos((prev) => prev.map((c) => (c.id === costoId ? actualizado : c)));
+      setEditingCostoId(null);
+      setEditingCostoMonto('');
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo actualizar el costo');
+    } finally {
+      setSavingCostoId(null);
+    }
+  };
+
+  const handleDeleteCosto = async (costoId: number) => {
+    if (!detail) return;
+    if (!confirm('Eliminar este costo de no calidad?')) return;
+    setDeletingCostoId(costoId);
+    try {
+      await deleteNoConformidadCosto(detail.id, costoId);
+      setCostos((prev) => prev.filter((c) => c.id !== costoId));
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo eliminar el costo');
+    } finally {
+      setDeletingCostoId(null);
+    }
+  };
+
+  const utilidadNeta = useMemo(() => {
+    const orden = Number(montoOrdenCompra) || 0;
+    const totalCostos = costos.reduce((sum, c) => sum + c.monto, 0);
+    return orden - totalCostos;
+  }, [montoOrdenCompra, costos]);
+
+  const availableCostosNoCalidad = useMemo(
+    () => costosNoCalidad.filter((c) => !costos.some((existing) => existing.costo_no_calidad_id === c.id)),
+    [costosNoCalidad, costos],
+  );
 
   if (loading || !detail) {
     return <p className="text-slate-400 text-center py-12">Cargando detalle...</p>;
@@ -714,6 +792,141 @@ export default function NoConformidadDetailPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <h4 className="font-semibold text-slate-900">Costeo del Caso</h4>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Monto Orden de Compra (U$D)</label>
+            <input
+              type="number"
+              step="0.01"
+              disabled={!canEdit}
+              value={montoOrdenCompra}
+              onChange={(e) => setMontoOrdenCompra(e.target.value)}
+              placeholder="0.00"
+              className="w-full md:w-64 px-3 py-2.5 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
+            />
+          </div>
+
+          {canEdit && (
+            <div className="flex flex-col md:flex-row gap-2 items-start md:items-end">
+              <div className="w-full md:w-64">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Costo de No Calidad</label>
+                <select
+                  value={costoToAddId}
+                  onChange={(e) => setCostoToAddId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm"
+                >
+                  <option value="">Seleccionar...</option>
+                  {availableCostosNoCalidad.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full md:w-40">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Monto (U$D)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={montoToAdd}
+                  onChange={(e) => setMontoToAdd(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleAddCosto}
+                disabled={!costoToAddId || !montoToAdd.trim() || addingCosto}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" /> {addingCosto ? 'Agregando...' : 'Agregar'}
+              </button>
+            </div>
+          )}
+
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Costeo del Caso</span>
+            </div>
+            <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                <span className="text-slate-600">Monto Orden de Compra</span>
+                <span className="font-semibold text-slate-800">{formatMonto(Number(montoOrdenCompra) || 0)}</span>
+              </div>
+
+              {costos.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-slate-400">Sin costos de no calidad cargados.</p>
+              ) : (
+                costos.map((costo) => (
+                  <div key={costo.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <span className="text-slate-600 truncate">{costo.costo_no_calidad_nombre || `Costo #${costo.costo_no_calidad_id}`}</span>
+                    {editingCostoId === costo.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingCostoMonto}
+                          onChange={(e) => setEditingCostoMonto(e.target.value)}
+                          className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-sm"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveCostoEdit(costo.id)}
+                          disabled={savingCostoId === costo.id}
+                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-50"
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingCostoId(null); setEditingCostoMonto(''); }}
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-rose-600 whitespace-nowrap">-{formatMonto(costo.monto)}</span>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => { setEditingCostoId(costo.id); setEditingCostoMonto(String(costo.monto)); }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              title="Editar monto"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCosto(costo.id)}
+                              disabled={deletingCostoId === costo.id}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg disabled:opacity-50"
+                              title="Eliminar costo"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
+                <span className="text-sm font-bold text-slate-800">Utilidad Neta</span>
+                <span className={`text-sm font-bold ${utilidadNeta < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  {formatMonto(utilidadNeta)}
+                </span>
+              </div>
             </div>
           </div>
         </article>

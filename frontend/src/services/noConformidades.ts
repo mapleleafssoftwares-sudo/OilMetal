@@ -10,6 +10,7 @@ import type {
   UpdateNoConformidadPayload,
   CloseNoConformidadPayload,
   NoConformidadArchivo,
+  NcCosto,
 } from '../types/noConformidades';
 
 export interface OrdenDisponible {
@@ -162,4 +163,30 @@ export async function getOrdenesDisponibles(): Promise<OrdenDisponible[]> {
 export async function getNoConformidadesByOrden(ordenId: string): Promise<NoConformidadDetail[]> {
   const res = await api.get(`/no-conformidades/by-orden/${ordenId}`);
   return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function getNoConformidadCostos(id: number): Promise<NcCosto[]> {
+  const res = await api.get(`/no-conformidades/${id}/costos`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createNoConformidadCosto(
+  id: number,
+  costoNoCalidadId: number,
+  monto: number,
+): Promise<NcCosto> {
+  const res = await api.post(`/no-conformidades/${id}/costos`, {
+    costo_no_calidad_id: costoNoCalidadId,
+    monto,
+  });
+  return res.data;
+}
+
+export async function updateNoConformidadCosto(id: number, costoId: number, monto: number): Promise<NcCosto> {
+  const res = await api.put(`/no-conformidades/${id}/costos/${costoId}`, { monto });
+  return res.data;
+}
+
+export async function deleteNoConformidadCosto(id: number, costoId: number): Promise<void> {
+  await api.delete(`/no-conformidades/${id}/costos/${costoId}`);
 }

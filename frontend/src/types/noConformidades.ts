@@ -54,6 +54,13 @@ export interface NoConformidadArchivo {
   fecha_subida: string;
 }
 
+export interface NcCosto {
+  id: number;
+  costo_no_calidad_id: number;
+  costo_no_calidad_nombre?: string | null;
+  monto: number;
+}
+
 export interface NoConformidadDetail {
   id: number;
   sector_tipo_id?: number | null;
@@ -75,6 +82,8 @@ export interface NoConformidadDetail {
   es_no_conformidad: boolean;
   orden_id?: string | null;
   orden_numero?: string | null;
+  monto_orden_compra?: number | null;
+  costos: NcCosto[];
 }
 
 export interface UpdateNoConformidadPayload {
@@ -88,6 +97,7 @@ export interface UpdateNoConformidadPayload {
   fecha_reclamo?: string | null;
   es_no_conformidad?: boolean;
   orden_id?: string | null;
+  monto_orden_compra?: number | null;
 }
 
 export interface CloseNoConformidadPayload {

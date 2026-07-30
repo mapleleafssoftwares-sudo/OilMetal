@@ -18,6 +18,9 @@ from app.schemas.schemas import (
     NoConformidadCloseRequest,
     NoConformidadResponsable,
     NoConformidadArchivo,
+    NcCosto,
+    NcCostoCreate,
+    NcCostoUpdate,
 )
 from app.routers.auth import get_current_admin, get_current_internal_user, get_current_user
 from app.core.supabase_client import get_supabase_admin_client
@@ -53,7 +56,7 @@ def _estado_no_conformidad(row) -> str:
 def _get_nc_or_404(supabase, nc_id: int):
     res = (
         supabase.table("no_conformidades")
-        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, monto_orden_compra, sector_tipo:sectores_tipo(id, nombre)")
         .eq("id", nc_id)
         .limit(1)
         .execute()
@@ -90,6 +93,28 @@ def _get_archivos(supabase, nc_id: int):
         .execute()
     )
     return [NoConformidadArchivo(**row) for row in (res.data or [])]
+
+
+def _get_costos(supabase, nc_id: int):
+    res = (
+        supabase.table("nc_costos")
+        .select("id, costo_no_calidad_id, monto, costo_no_calidad:costos_no_calidad(id, nombre)")
+        .eq("no_conformidad_id", nc_id)
+        .order("id")
+        .execute()
+    )
+    result = []
+    for row in (res.data or []):
+        costo = row.get("costo_no_calidad") or {}
+        if isinstance(costo, list):
+            costo = costo[0] if costo else {}
+        result.append(NcCosto(
+            id=row["id"],
+            costo_no_calidad_id=row["costo_no_calidad_id"],
+            costo_no_calidad_nombre=costo.get("nombre"),
+            monto=float(row.get("monto") or 0),
+        ))
+    return result
 
 
 def _resolve_orden_numero(supabase, orden_id):
@@ -132,6 +157,8 @@ def _to_detail_model(supabase, row):
         es_no_conformidad=row.get("es_no_conformidad", True),
         orden_id=str(orden_id) if orden_id else None,
         orden_numero=orden_numero,
+        monto_orden_compra=(float(row["monto_orden_compra"]) if row.get("monto_orden_compra") is not None else None),
+        costos=_get_costos(supabase, row["id"]),
     )
 
 
@@ -151,7 +178,7 @@ def list_no_conformidades_by_orden(orden_id: str, current_user: UserProfile = De
 
     res = (
         supabase.table("no_conformidades")
-        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, sector_tipo:sectores_tipo(id, nombre)")
+        .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, monto_orden_compra, sector_tipo:sectores_tipo(id, nombre)")
         .eq("orden_id", orden_id)
         .order("id", desc=True)
         .execute()
@@ -241,6 +268,88 @@ def delete_no_conformidad_archivo(
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"No se pudo eliminar el adjunto: {str(e)}")
+
+
+@router.get("/{nc_id}/costos", response_model=list[NcCosto])
+def list_no_conformidad_costos(nc_id: int, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    _get_nc_or_404(supabase, nc_id)
+    return _get_costos(supabase, nc_id)
+
+
+@router.post("/{nc_id}/costos", response_model=NcCosto)
+def create_no_conformidad_costo(nc_id: int, body: NcCostoCreate, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    current = _get_nc_or_404(supabase, nc_id)
+    if current.get("fecha_cierre"):
+        raise HTTPException(status_code=400, detail="El caso está cerrado. Reabrilo para modificar el costeo")
+
+    costo_res = (
+        supabase.table("costos_no_calidad")
+        .select("id, activo")
+        .eq("id", body.costo_no_calidad_id)
+        .limit(1)
+        .execute()
+    )
+    if not costo_res.data or not costo_res.data[0].get("activo", False):
+        raise HTTPException(status_code=400, detail="Costo de No Calidad inválido o inactivo")
+
+    ins = supabase.table("nc_costos").insert({
+        "no_conformidad_id": nc_id,
+        "costo_no_calidad_id": body.costo_no_calidad_id,
+        "monto": body.monto,
+    }).execute()
+    if not ins.data:
+        raise HTTPException(status_code=400, detail="No se pudo agregar el costo")
+
+    costos = _get_costos(supabase, nc_id)
+    nuevo = next((c for c in costos if c.id == ins.data[0]["id"]), None)
+    if not nuevo:
+        raise HTTPException(status_code=500, detail="No se pudo recuperar el costo creado")
+    return nuevo
+
+
+@router.put("/{nc_id}/costos/{costo_id}", response_model=NcCosto)
+def update_no_conformidad_costo(nc_id: int, costo_id: int, body: NcCostoUpdate, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    current = _get_nc_or_404(supabase, nc_id)
+    if current.get("fecha_cierre"):
+        raise HTTPException(status_code=400, detail="El caso está cerrado. Reabrilo para modificar el costeo")
+
+    res = (
+        supabase.table("nc_costos")
+        .update({"monto": body.monto})
+        .eq("id", costo_id)
+        .eq("no_conformidad_id", nc_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Costo no encontrado")
+
+    costos = _get_costos(supabase, nc_id)
+    actualizado = next((c for c in costos if c.id == costo_id), None)
+    if not actualizado:
+        raise HTTPException(status_code=500, detail="No se pudo recuperar el costo actualizado")
+    return actualizado
+
+
+@router.delete("/{nc_id}/costos/{costo_id}")
+def delete_no_conformidad_costo(nc_id: int, costo_id: int, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    current = _get_nc_or_404(supabase, nc_id)
+    if current.get("fecha_cierre"):
+        raise HTTPException(status_code=400, detail="El caso está cerrado. Reabrilo para modificar el costeo")
+
+    res = (
+        supabase.table("nc_costos")
+        .delete()
+        .eq("id", costo_id)
+        .eq("no_conformidad_id", nc_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Costo no encontrado")
+    return {"ok": True}
 
 
 @router.get("/sectores-tipo")
@@ -599,6 +708,9 @@ def update_no_conformidad(nc_id: int, body: NoConformidadUpdate, current_user: U
 
     if body.es_no_conformidad is not None:
         patch["es_no_conformidad"] = body.es_no_conformidad
+
+    if body.monto_orden_compra is not None:
+        patch["monto_orden_compra"] = body.monto_orden_compra
 
     # Vincular / desvincular carpeta del gestor de documentos
     if body.orden_id is not None:

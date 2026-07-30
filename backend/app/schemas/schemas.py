@@ -136,6 +136,22 @@ class NoConformidadArchivo(BaseModel):
     fecha_subida: datetime
 
 
+class NcCosto(BaseModel):
+    id: int
+    costo_no_calidad_id: int
+    costo_no_calidad_nombre: Optional[str] = None
+    monto: float
+
+
+class NcCostoCreate(BaseModel):
+    costo_no_calidad_id: int
+    monto: float
+
+
+class NcCostoUpdate(BaseModel):
+    monto: float
+
+
 class NoConformidadDetail(BaseModel):
     id: int
     sector_tipo_id: Optional[int] = None
@@ -157,6 +173,8 @@ class NoConformidadDetail(BaseModel):
     es_no_conformidad: bool = True
     orden_id: Optional[str] = None
     orden_numero: Optional[str] = None
+    monto_orden_compra: Optional[float] = None
+    costos: List[NcCosto] = []
 
 
 class NoConformidadUpdate(BaseModel):
@@ -170,6 +188,7 @@ class NoConformidadUpdate(BaseModel):
     fecha_reclamo: Optional[str] = None
     es_no_conformidad: Optional[bool] = None
     orden_id: Optional[str] = None  # UUID de la orden del gestor de documentos (vacío = desasociar)
+    monto_orden_compra: Optional[float] = None
 
 
 class NoConformidadResponsablesUpdate(BaseModel):
