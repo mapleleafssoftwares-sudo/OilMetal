@@ -16,6 +16,12 @@ export interface RequisitoPuntual {
   activo: boolean;
 }
 
+export interface CostoNoCalidad {
+  id: number;
+  nombre: string;
+  activo: boolean;
+}
+
 export interface NoConformidadListItem {
   id: number;
   fecha_apertura: string;

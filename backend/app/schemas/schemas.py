@@ -96,6 +96,14 @@ class RequisitoPuntualCreate(RequisitoPuntualBase):
     pass
 
 
+class CostoNoCalidadBase(BaseModel):
+    nombre: str
+
+
+class CostoNoCalidadCreate(CostoNoCalidadBase):
+    pass
+
+
 class NoConformidadCreate(BaseModel):
     sector_tipo_id: int
     plazo: Optional[str] = None

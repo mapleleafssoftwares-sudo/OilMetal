@@ -3,22 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CalendarDays, Plus, Search, X, LibraryBig, Pencil, Trash2, Check } from 'lucide-react';
 import {
   createCargo,
+  createCostoNoCalidad,
   createNoConformidad,
   createRequisitoPuntual,
   createSectorTipo,
   deleteCargo,
+  deleteCostoNoCalidad,
   deleteRequisitoPuntual,
   deleteSectorTipo,
   getCargos,
+  getCostosNoCalidad,
   getNoConformidades,
   getRequisitosPuntuales,
   getSectoresTipo,
   updateCargo,
+  updateCostoNoCalidad,
   updateRequisitoPuntual,
   updateSectorTipo,
 } from '../services/noConformidades';
 import type { NoConformidadListItem, SectorTipo } from '../types/noConformidades';
-import type { Cargo, RequisitoPuntual } from '../types/noConformidades';
+import type { Cargo, RequisitoPuntual, CostoNoCalidad } from '../types/noConformidades';
 import { useAuthStore } from '../store/useAuthStore';
 
 type Tab = 'casos' | 'catalogos';
@@ -49,6 +53,7 @@ export default function NoConformidadesPage() {
   const [sectores, setSectores] = useState<SectorTipo[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [requisitosPuntuales, setRequisitosPuntuales] = useState<RequisitoPuntual[]>([]);
+  const [costosNoCalidad, setCostosNoCalidad] = useState<CostoNoCalidad[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -65,15 +70,19 @@ export default function NoConformidadesPage() {
   const [newSectorNombre, setNewSectorNombre] = useState('');
   const [newCargoNombre, setNewCargoNombre] = useState('');
   const [newRequisitoNombre, setNewRequisitoNombre] = useState('');
+  const [newCostoNombre, setNewCostoNombre] = useState('');
   const [savingSector, setSavingSector] = useState(false);
   const [savingCargo, setSavingCargo] = useState(false);
   const [savingRequisito, setSavingRequisito] = useState(false);
+  const [savingCosto, setSavingCosto] = useState(false);
   const [editingSectorId, setEditingSectorId] = useState<number | null>(null);
   const [editingSectorNombre, setEditingSectorNombre] = useState('');
   const [editingCargoId, setEditingCargoId] = useState<number | null>(null);
   const [editingCargoNombre, setEditingCargoNombre] = useState('');
   const [editingRequisitoId, setEditingRequisitoId] = useState<number | null>(null);
   const [editingRequisitoNombre, setEditingRequisitoNombre] = useState('');
+  const [editingCostoId, setEditingCostoId] = useState<number | null>(null);
+  const [editingCostoNombre, setEditingCostoNombre] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -100,19 +109,22 @@ export default function NoConformidadesPage() {
   const loadCatalogs = async () => {
     setLoadingCatalogs(true);
     try {
-      const [sectoresData, cargosData, requisitosData] = await Promise.all([
+      const [sectoresData, cargosData, requisitosData, costosData] = await Promise.all([
         getSectoresTipo(true),
         getCargos(true),
         getRequisitosPuntuales(true),
+        getCostosNoCalidad(true),
       ]);
       setSectores(sectoresData);
       setCargos(cargosData);
       setRequisitosPuntuales(requisitosData);
+      setCostosNoCalidad(costosData);
     } catch (error) {
       console.error(error);
       setSectores([]);
       setCargos([]);
       setRequisitosPuntuales([]);
+      setCostosNoCalidad([]);
     } finally {
       setLoadingCatalogs(false);
     }
@@ -312,6 +324,46 @@ export default function NoConformidadesPage() {
     }
   };
 
+  const handleCreateCosto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCostoNombre.trim()) return;
+    setSavingCosto(true);
+    try {
+      await createCostoNoCalidad(newCostoNombre.trim());
+      setNewCostoNombre('');
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo crear el Costo de No Calidad');
+    } finally {
+      setSavingCosto(false);
+    }
+  };
+
+  const handleSaveCostoEdit = async (id: number) => {
+    if (!editingCostoNombre.trim()) return;
+    setSavingCosto(true);
+    try {
+      await updateCostoNoCalidad(id, editingCostoNombre.trim());
+      setEditingCostoId(null);
+      setEditingCostoNombre('');
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo actualizar el Costo de No Calidad');
+    } finally {
+      setSavingCosto(false);
+    }
+  };
+
+  const handleDeleteCosto = async (id: number, nombre: string) => {
+    if (!confirm(`Dar de baja Costo de No Calidad "${nombre}"?`)) return;
+    try {
+      await deleteCostoNoCalidad(id);
+      await loadCatalogs();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo dar de baja el Costo de No Calidad');
+    }
+  };
+
   return (
     <section className="space-y-6 w-full">
       {isAdmin && (
@@ -332,7 +384,7 @@ export default function NoConformidadesPage() {
       )}
 
       {tab === 'catalogos' && isAdmin && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h4 className="font-semibold text-slate-900 mb-3">Sector/Tipo</h4>
             <form onSubmit={handleCreateSector} className="flex gap-2 mb-4">
@@ -564,6 +616,87 @@ export default function NoConformidadesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteRequisito(requisito.id, requisito.nombre)}
+                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h4 className="font-semibold text-slate-900 mb-3">Costos de No Calidad</h4>
+            <form onSubmit={handleCreateCosto} className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newCostoNombre}
+                onChange={(e) => setNewCostoNombre(e.target.value)}
+                placeholder="Nuevo Costo de No Calidad"
+                className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm"
+              />
+              <button
+                type="submit"
+                disabled={savingCosto}
+                className="px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl disabled:opacity-50"
+              >
+                Agregar
+              </button>
+            </form>
+
+            {loadingCatalogs ? (
+              <p className="text-sm text-slate-400">Cargando...</p>
+            ) : costosNoCalidad.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin registros.</p>
+            ) : (
+              <ul className="space-y-2">
+                {costosNoCalidad.map((costo) => (
+                  <li key={costo.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100">
+                    {editingCostoId === costo.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingCostoNombre}
+                          onChange={(e) => setEditingCostoNombre(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveCostoEdit(costo.id)}
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCostoId(null);
+                            setEditingCostoNombre('');
+                          }}
+                          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm text-slate-700">{costo.nombre}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCostoId(costo.id);
+                            setEditingCostoNombre(costo.nombre);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCosto(costo.id, costo.nombre)}
                           className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"
                         >
                           <Trash2 className="h-4 w-4" />

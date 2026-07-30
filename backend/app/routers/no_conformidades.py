@@ -9,6 +9,7 @@ from app.schemas.schemas import (
     SectorTipoCreate,
     CargoCreate,
     RequisitoPuntualCreate,
+    CostoNoCalidadCreate,
     NoConformidadCreate,
     NoConformidadListItem,
     NoConformidadDetail,
@@ -381,6 +382,50 @@ def deactivate_requisito_puntual(requisito_id: int, current_user: UserProfile = 
     res = supabase.table("requisitos_puntuales").update({"activo": False}).eq("id", requisito_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Requisito Puntual no encontrado")
+    return {"ok": True}
+
+
+@router.get("/costos-no-calidad")
+def list_costos_no_calidad(activos: bool = True, current_user: UserProfile = Depends(get_current_internal_user)):
+    supabase = get_supabase_admin_client()
+    query = supabase.table("costos_no_calidad").select("id, nombre, activo").order("nombre")
+    if activos:
+        query = query.eq("activo", True)
+    res = query.execute()
+    return res.data or []
+
+
+@router.post("/costos-no-calidad")
+def create_costo_no_calidad(body: CostoNoCalidadCreate, current_user: UserProfile = Depends(get_current_admin)):
+    nombre = body.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+    supabase = get_supabase_admin_client()
+    try:
+        res = supabase.table("costos_no_calidad").insert({"nombre": nombre, "activo": True}).execute()
+        return res.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo crear el Costo de No Calidad: {str(e)}")
+
+
+@router.put("/costos-no-calidad/{costo_id}")
+def update_costo_no_calidad(costo_id: int, body: CostoNoCalidadCreate, current_user: UserProfile = Depends(get_current_admin)):
+    nombre = body.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+    supabase = get_supabase_admin_client()
+    res = supabase.table("costos_no_calidad").update({"nombre": nombre}).eq("id", costo_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Costo de No Calidad no encontrado")
+    return res.data[0]
+
+
+@router.delete("/costos-no-calidad/{costo_id}")
+def deactivate_costo_no_calidad(costo_id: int, current_user: UserProfile = Depends(get_current_admin)):
+    supabase = get_supabase_admin_client()
+    res = supabase.table("costos_no_calidad").update({"activo": False}).eq("id", costo_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Costo de No Calidad no encontrado")
     return {"ok": True}
 
 

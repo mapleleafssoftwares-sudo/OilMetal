@@ -3,6 +3,7 @@ import type {
   SectorTipo,
   Cargo,
   RequisitoPuntual,
+  CostoNoCalidad,
   NoConformidadListItem,
   CreateNoConformidadPayload,
   NoConformidadDetail,
@@ -72,6 +73,25 @@ export async function updateRequisitoPuntual(id: number, nombre: string): Promis
 
 export async function deleteRequisitoPuntual(id: number): Promise<void> {
   await api.delete(`/no-conformidades/requisitos-puntuales/${id}`);
+}
+
+export async function getCostosNoCalidad(activos = true): Promise<CostoNoCalidad[]> {
+  const res = await api.get('/no-conformidades/costos-no-calidad', { params: { activos } });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createCostoNoCalidad(nombre: string): Promise<CostoNoCalidad> {
+  const res = await api.post('/no-conformidades/costos-no-calidad', { nombre });
+  return res.data;
+}
+
+export async function updateCostoNoCalidad(id: number, nombre: string): Promise<CostoNoCalidad> {
+  const res = await api.put(`/no-conformidades/costos-no-calidad/${id}`, { nombre });
+  return res.data;
+}
+
+export async function deleteCostoNoCalidad(id: number): Promise<void> {
+  await api.delete(`/no-conformidades/costos-no-calidad/${id}`);
 }
 
 export async function getNoConformidades(): Promise<NoConformidadListItem[]> {
