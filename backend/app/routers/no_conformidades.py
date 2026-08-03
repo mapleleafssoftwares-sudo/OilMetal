@@ -879,18 +879,24 @@ def update_no_conformidad(nc_id: int, body: NoConformidadUpdate, current_user: U
     if body.plazo is not None:
         patch["plazo"] = body.plazo or None
 
-    if body.fecha_reclamo is not None:
+    # fecha_reclamo, monto_orden_compra y orden_id son campos que el frontend
+    # envía siempre (incluso como null para "borrar"/"desvincular"), por eso se
+    # chequea si vinieron en el body (model_fields_set) en vez de "is not None":
+    # un null explícito debe limpiar el campo, no ser ignorado.
+    provided = body.model_fields_set
+
+    if "fecha_reclamo" in provided:
         patch["fecha_reclamo"] = body.fecha_reclamo or None
 
     if body.es_no_conformidad is not None:
         patch["es_no_conformidad"] = body.es_no_conformidad
 
-    if body.monto_orden_compra is not None:
+    if "monto_orden_compra" in provided:
         patch["monto_orden_compra"] = body.monto_orden_compra
 
     # Vincular / desvincular carpeta del gestor de documentos
-    if body.orden_id is not None:
-        if body.orden_id == "":
+    if "orden_id" in provided:
+        if not body.orden_id:
             patch["orden_id"] = None
         else:
             # Verificar que la orden existe
