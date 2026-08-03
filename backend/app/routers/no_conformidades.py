@@ -198,6 +198,9 @@ def list_no_conformidades_by_orden(orden_id: str, current_user: UserProfile = De
         supabase.table("no_conformidades")
         .select("id, sector_tipo_id, fecha_apertura, fecha_cierre, fecha_reclamo, descripcion, evidencia_objetiva, solucion_inmediata, analisis_causa_raiz, accion_propuesta, plazo, cumplimiento_accion, cumplimiento_en_plazo, es_no_conformidad, orden_id, monto_orden_compra, sector_tipo:sectores_tipo(id, nombre)")
         .eq("orden_id", orden_id)
+        # Solo se muestran en la carpeta del gestor de documentos los casos
+        # efectivamente marcados como No Conformidad (no simples Reclamos).
+        .eq("es_no_conformidad", True)
         .order("id", desc=True)
         .execute()
     )
