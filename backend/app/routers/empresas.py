@@ -382,6 +382,44 @@ def create_orden(body: OrdenCreate, current_user: UserProfile = Depends(get_curr
         raise HTTPException(status_code=400, detail=f"Error al crear la orden: {str(e)}")
 
 
+class OrdenRename(BaseModel):
+    numero_orden: str
+
+
+@router.patch("/ordenes/{orden_id}")
+def rename_orden(orden_id: str, body: OrdenRename, current_user: UserProfile = Depends(get_current_admin)):
+    nuevo_nombre = body.numero_orden.strip()
+    if not nuevo_nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la carpeta no puede estar vacío")
+
+    supabase = get_supabase_admin_client()
+
+    actual = supabase.table("gestion_ordenes").select("id").eq("id", orden_id).limit(1).execute()
+    if not actual.data:
+        raise HTTPException(status_code=404, detail="Carpeta no encontrada")
+
+    duplicada = (
+        supabase.table("gestion_ordenes")
+        .select("id")
+        .eq("numero_orden", nuevo_nombre)
+        .neq("id", orden_id)
+        .execute()
+    )
+    if duplicada.data:
+        raise HTTPException(status_code=409, detail=f"Ya existe una carpeta llamada '{nuevo_nombre}'")
+
+    try:
+        res = (
+            supabase.table("gestion_ordenes")
+            .update({"numero_orden": nuevo_nombre})
+            .eq("id", orden_id)
+            .execute()
+        )
+        return res.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al renombrar la carpeta: {str(e)}")
+
+
 @router.delete("/ordenes/{orden_id}")
 def delete_orden(orden_id: str, current_user: UserProfile = Depends(get_current_admin)):
     supabase = get_supabase_admin_client()

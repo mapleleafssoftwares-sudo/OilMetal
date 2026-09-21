@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search, AlertTriangle } from 'lucide-react';
+import { FolderOpen, Folder, Plus, Trash2, ChevronRight, FileText, X, Link, Building2, Search, AlertTriangle, Pencil, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { getNoConformidadesByOrden } from '../services/noConformidades';
@@ -53,6 +53,9 @@ export default function GestionDocumentosPage() {
 
   // Carpeta abierta
   const [openOrden, setOpenOrden] = useState<Orden | null>(null);
+  const [renamingOrden, setRenamingOrden] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [savingRename, setSavingRename] = useState(false);
   const [docs, setDocs] = useState<Documento[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [ncs, setNcs] = useState<NoConformidadDetail[]>([]);
@@ -199,17 +202,90 @@ export default function GestionDocumentosPage() {
     } finally { setLinking(false); }
   };
 
+  const startRename = () => {
+    if (!openOrden) return;
+    setRenameValue(openOrden.numero_orden);
+    setRenamingOrden(true);
+  };
+
+  const cancelRename = () => {
+    setRenamingOrden(false);
+    setRenameValue('');
+  };
+
+  const handleRenameOrden = async () => {
+    if (!openOrden) return;
+    const nuevo = renameValue.trim();
+    if (!nuevo) return;
+    if (nuevo === openOrden.numero_orden) { cancelRename(); return; }
+    setSavingRename(true);
+    try {
+      await api.patch(`/empresas/ordenes/${openOrden.id}`, { numero_orden: nuevo });
+      setOpenOrden({ ...openOrden, numero_orden: nuevo });
+      setOrdenes(prev => prev.map(o => o.id === openOrden.id ? { ...o, numero_orden: nuevo } : o));
+      cancelRename();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo renombrar la carpeta');
+    } finally {
+      setSavingRename(false);
+    }
+  };
+
   // ── Vista: Detalle de carpeta ───────────────────────────────────────────────
   if (openOrden) {
     return (
       <div className="h-full flex flex-col">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6">
-          <button onClick={() => setOpenOrden(null)} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium transition-colors">
+          <button onClick={() => { cancelRename(); setOpenOrden(null); }} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium transition-colors">
             <Folder className="h-4 w-4" /> Gestión de Documentos
           </button>
           <ChevronRight className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-bold text-slate-800">{openOrden.numero_orden}</span>
+          {renamingOrden ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                type="text"
+                value={renameValue}
+                onChange={e => setRenameValue(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleRenameOrden();
+                  if (e.key === 'Escape') cancelRename();
+                }}
+                disabled={savingRename}
+                className="px-2.5 py-1 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+              />
+              <button
+                onClick={handleRenameOrden}
+                disabled={savingRename || !renameValue.trim()}
+                title="Guardar nombre"
+                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+              <button
+                onClick={cancelRename}
+                disabled={savingRename}
+                title="Cancelar"
+                className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="text-sm font-bold text-slate-800">{openOrden.numero_orden}</span>
+              {isAdmin && (
+                <button
+                  onClick={startRename}
+                  title="Renombrar carpeta"
+                  className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          )}
           {openOrden.empresa && <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{openOrden.empresa.nombre}</span>}
         </div>
 
