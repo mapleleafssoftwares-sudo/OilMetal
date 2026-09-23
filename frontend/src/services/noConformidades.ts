@@ -106,6 +106,10 @@ export async function createNoConformidad(payload: CreateNoConformidadPayload): 
   return res.data;
 }
 
+export async function deleteNoConformidad(id: number): Promise<void> {
+  await api.delete(`/no-conformidades/${id}`);
+}
+
 export async function getNoConformidadDetail(id: number): Promise<NoConformidadDetail> {
   const res = await api.get(`/no-conformidades/${id}`);
   return res.data;

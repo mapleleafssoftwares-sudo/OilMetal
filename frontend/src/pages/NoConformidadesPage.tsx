@@ -10,6 +10,7 @@ import {
   createSectorTipo,
   deleteCargo,
   deleteCostoNoCalidad,
+  deleteNoConformidad,
   deleteRequisitoPuntual,
   deleteSectorTipo,
   getCargos,
@@ -58,6 +59,7 @@ export default function NoConformidadesPage() {
   const [loading, setLoading] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCliente, setFilterCliente] = useState('');
@@ -100,6 +102,19 @@ export default function NoConformidadesPage() {
       setSectores([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteCaso = async (id: number, numeroSecuencial: number) => {
+    if (!confirm(`¿Eliminar definitivamente el caso #${numeroSecuencial}? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(id);
+    try {
+      await deleteNoConformidad(id);
+      setItems(prev => prev.filter(item => item.id !== id));
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'No se pudo eliminar el caso');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -861,13 +876,26 @@ export default function NoConformidadesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
-                        >
-                          Ver detalle
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                          >
+                            Ver detalle
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCaso(item.id, item.numero_secuencial)}
+                              disabled={deletingId === item.id}
+                              title="Eliminar caso"
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg disabled:opacity-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -905,13 +933,26 @@ export default function NoConformidadesPage() {
                       </>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
-                    className="mt-3 w-full px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
-                  >
-                    Ver detalle
-                  </button>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
+                      className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                    >
+                      Ver detalle
+                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCaso(item.id, item.numero_secuencial)}
+                        disabled={deletingId === item.id}
+                        title="Eliminar caso"
+                        className="px-3 py-2 text-rose-600 border border-rose-200 bg-rose-50 hover:bg-rose-100 rounded-lg disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

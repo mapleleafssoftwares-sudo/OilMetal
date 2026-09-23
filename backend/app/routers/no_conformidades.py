@@ -847,6 +847,33 @@ def create_no_conformidad(body: NoConformidadCreate, current_user: UserProfile =
     )
 
 
+@router.delete("/{nc_id}")
+def delete_no_conformidad(nc_id: int, current_user: UserProfile = Depends(get_current_admin)):
+    """Borra definitivamente un caso (solo admin), pensado para corregir cargas por error."""
+    supabase = get_supabase_admin_client()
+    current = _get_nc_or_404(supabase, nc_id)
+
+    archivos_res = (
+        supabase.table("nc_archivos")
+        .select("storage_path, bucket")
+        .eq("no_conformidad_id", nc_id)
+        .execute()
+    )
+    for archivo in (archivos_res.data or []):
+        storage_path = archivo.get("storage_path")
+        if not storage_path:
+            continue
+        bucket = archivo.get("bucket") or settings.SUPABASE_NC_BUCKET
+        try:
+            supabase.storage.from_(bucket).remove([storage_path])
+        except Exception:
+            pass
+
+    # nc_responsables, nc_archivos y nc_costos se borran en cascada (ON DELETE CASCADE)
+    supabase.table("no_conformidades").delete().eq("id", nc_id).execute()
+    return {"ok": True}
+
+
 @router.get("/{nc_id}", response_model=NoConformidadDetail)
 def get_no_conformidad_detail(nc_id: int, current_user: UserProfile = Depends(get_current_internal_user)):
     supabase = get_supabase_admin_client()
