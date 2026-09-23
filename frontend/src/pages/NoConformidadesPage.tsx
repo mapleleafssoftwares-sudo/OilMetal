@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarDays, LayoutDashboard, Plus, Search, X, LibraryBig, Pencil, Trash2, Check } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Eye, LayoutDashboard, Plus, Search, X, LibraryBig, Pencil, Trash2, Check } from 'lucide-react';
 import DashboardCasosPage from './DashboardCasosPage';
 import {
   createCargo,
@@ -880,9 +880,10 @@ export default function NoConformidadesPage() {
                           <button
                             type="button"
                             onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                            title="Ver detalle"
+                            className="p-1.5 text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg"
                           >
-                            Ver detalle
+                            <Eye className="h-4 w-4" />
                           </button>
                           {isAdmin && (
                             <button
@@ -937,9 +938,10 @@ export default function NoConformidadesPage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/no-conformidades/${item.id}`)}
-                      className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                      title="Ver detalle"
+                      className="flex-1 flex items-center justify-center px-3 py-2 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100"
                     >
-                      Ver detalle
+                      <Eye className="h-4 w-4" />
                     </button>
                     {isAdmin && (
                       <button

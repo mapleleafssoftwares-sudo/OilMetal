@@ -10,7 +10,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   const handleLogout = () => {
     logout();
@@ -33,15 +33,15 @@ export default function AdminLayout() {
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
 
       {/* ── Sidebar (visible en md+) ── */}
-      <aside className={`hidden md:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-900/95 backdrop-blur-xl text-slate-300 flex-col border-r border-slate-800 shadow-2xl relative z-20 transition-all duration-300`}>
+      <aside
+        onMouseEnter={() => setSidebarCollapsed(false)}
+        onMouseLeave={() => setSidebarCollapsed(true)}
+        className={`hidden md:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-900/95 backdrop-blur-xl text-slate-300 flex-col border-r border-slate-800 shadow-2xl relative z-20 transition-all duration-300`}
+      >
         <div className={`h-20 flex items-center justify-center ${sidebarCollapsed ? 'px-2' : 'px-4'} border-b border-slate-800/60`}>
-          <button
-            onClick={() => setSidebarCollapsed((prev) => !prev)}
-            title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
-            className={`w-full flex items-center rounded-xl transition-colors hover:bg-slate-800/50 ${sidebarCollapsed ? 'justify-center p-2' : 'justify-center p-2.5'}`}
-          >
+          <div className={`w-full flex items-center rounded-xl ${sidebarCollapsed ? 'justify-center p-2' : 'justify-center p-2.5'}`}>
             <img src="/logo.png" alt="OilMetal" className={`${sidebarCollapsed ? 'h-11' : 'h-14'} w-auto object-contain transition-all`} />
-          </button>
+          </div>
         </div>
 
         <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-4'} py-6 space-y-2 overflow-y-auto`}>
