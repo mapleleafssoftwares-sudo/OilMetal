@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Any, Callable
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
 from app.core.config import settings
@@ -39,3 +40,18 @@ def get_supabase_admin_client() -> Client:
     client = create_client(settings.SUPABASE_URL, key, options=ClientOptions())
     client.postgrest.auth(key)
     return client
+
+
+# PostgREST (Supabase) corta en silencio cualquier respuesta a 1000 filas.
+PAGE_SIZE = 1000
+
+
+def fetch_all(build_query: Callable[[], Any]) -> list[dict]:
+    # build_query debe ordenar con desempate por id en UNA sola cláusula
+    # ("created_at.desc,id.desc"): PostgREST ignora un segundo .order().
+    rows: list[dict] = []
+    while True:
+        page = build_query().range(len(rows), len(rows) + PAGE_SIZE).execute().data or []
+        rows.extend(page)
+        if len(page) < PAGE_SIZE:
+            return rows

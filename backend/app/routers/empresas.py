@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from app.schemas.schemas import UserProfile
 from app.routers.auth import get_current_admin, get_current_user, get_current_internal_user
 from app.routers.no_conformidades import _to_detail_model
-from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
+from app.core.supabase_client import get_supabase_client, get_supabase_admin_client, fetch_all
 from pydantic import BaseModel
 from typing import Optional
 from io import BytesIO
@@ -213,8 +213,7 @@ class EmpresaCreate(BaseModel):
 @router.get("")
 def list_empresas(current_user: UserProfile = Depends(get_current_user)):
     supabase = get_supabase_client()
-    res = supabase.table("empresas").select("*").order("nombre").execute()
-    return res.data or []
+    return fetch_all(lambda: supabase.table("empresas").select("*").order("nombre,id"))
 
 
 @router.post("")
@@ -238,18 +237,21 @@ def delete_empresa(empresa_id: str, current_user: UserProfile = Depends(get_curr
 @router.get("/ordenes")
 def list_ordenes(current_user: UserProfile = Depends(get_current_user)):
     supabase = get_supabase_admin_client()
-    query = (
-        supabase.table("gestion_ordenes")
-        .select("*, empresa:empresas(id, nombre)")
-        .order("created_at", desc=True)
-    )
     # Solo consultores (usuarios externos) ven únicamente sus carpetas de empresa
-    if current_user.rol == "consultor":
-        if not current_user.empresa_id:
-            return []
-        query = query.eq("empresa_id", str(current_user.empresa_id))
-    res = query.execute()
-    return res.data or []
+    if current_user.rol == "consultor" and not current_user.empresa_id:
+        return []
+
+    def build_query():
+        query = (
+            supabase.table("gestion_ordenes")
+            .select("*, empresa:empresas(id, nombre)")
+            .order("created_at.desc,id.desc")
+        )
+        if current_user.rol == "consultor":
+            query = query.eq("empresa_id", str(current_user.empresa_id))
+        return query
+
+    return fetch_all(build_query)
 
 
 @router.get("/repositorio.zip")
@@ -266,12 +268,13 @@ def export_repositorio_zip(current_user: UserProfile = Depends(get_current_user)
         if empresa_res.data:
             empresa_nombre = empresa_res.data[0].get("nombre")
 
-    orden_query = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("created_at", desc=True)
-    if empresa_id:
-        orden_query = orden_query.eq("empresa_id", str(empresa_id))
+    def build_orden_query():
+        orden_query = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("created_at.desc,id.desc")
+        if empresa_id:
+            orden_query = orden_query.eq("empresa_id", str(empresa_id))
+        return orden_query
 
-    ordenes_res = orden_query.execute()
-    ordenes = ordenes_res.data or []
+    ordenes = fetch_all(build_orden_query)
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zip_file:
@@ -368,9 +371,23 @@ def create_orden(body: OrdenCreate, current_user: UserProfile = Depends(get_curr
     supabase = get_supabase_admin_client()
     
     # Validar que el número de orden no exista
-    existing = supabase.table("gestion_ordenes").select("id").eq("numero_orden", numero_orden_clean).execute()
+    existing = (
+        supabase.table("gestion_ordenes")
+        .select("id, created_at, empresa:empresas(nombre)")
+        .eq("numero_orden", numero_orden_clean)
+        .limit(1)
+        .execute()
+    )
     if existing.data:
-        raise HTTPException(status_code=409, detail=f"El número de orden '{numero_orden_clean}' ya existe")
+        orden = existing.data[0]
+        empresa = orden.get("empresa") or {}
+        if isinstance(empresa, list):
+            empresa = empresa[0] if empresa else {}
+        fecha = datetime.fromisoformat(orden["created_at"]).strftime("%d/%m/%Y")
+        raise HTTPException(
+            status_code=409,
+            detail=f"El número de orden '{numero_orden_clean}' ya existe (empresa: {empresa.get('nombre') or 'sin empresa'}, creada el {fecha}).",
+        )
     
     try:
         res = supabase.table("gestion_ordenes").insert({

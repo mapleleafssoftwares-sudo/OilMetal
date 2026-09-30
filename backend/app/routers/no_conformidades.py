@@ -28,7 +28,7 @@ from app.schemas.schemas import (
     NoConformidadesDashboard,
 )
 from app.routers.auth import get_current_admin, get_current_internal_user, get_current_user
-from app.core.supabase_client import get_supabase_admin_client
+from app.core.supabase_client import get_supabase_admin_client, fetch_all
 from app.core.config import settings
 
 router = APIRouter(prefix="/no-conformidades", tags=["no-conformidades"])
@@ -564,9 +564,9 @@ def list_ordenes_disponibles(current_user: UserProfile = Depends(get_current_int
     """Devuelve las carpetas (ordenes) del gestor de documentos para el selector de vinculación."""
     supabase = get_supabase_admin_client()
     try:
-        res = supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("numero_orden").execute()
+        rows = fetch_all(lambda: supabase.table("gestion_ordenes").select("id, numero_orden, empresa_id, empresa:empresas(id, nombre)").order("numero_orden,id"))
         result = []
-        for row in (res.data or []):
+        for row in rows:
             empresa = row.get("empresa") or {}
             if isinstance(empresa, list):
                 empresa = empresa[0] if empresa else {}

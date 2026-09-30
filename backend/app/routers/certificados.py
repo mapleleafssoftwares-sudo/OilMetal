@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form, Q
 from typing import List, Optional
 from app.schemas.schemas import CertificadoResponse, UserProfile
 from app.routers.auth import get_current_admin, get_current_internal_user
-from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
+from app.core.supabase_client import get_supabase_client, get_supabase_admin_client, fetch_all
 import uuid
 import os
 
@@ -44,8 +44,7 @@ def list_by_section(
     assert_section_access(seccion, current_user)
     cfg = get_section_config(seccion)
     supabase = get_supabase_admin_client()
-    res = supabase.table(cfg["table"]).select("*").order("created_at", desc=True).execute()
-    return res.data or []
+    return fetch_all(lambda: supabase.table(cfg["table"]).select("*").order("created_at.desc,id.desc"))
 
 
 @router.post("/upload")
