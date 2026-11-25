@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Loader2, Mail, Lock } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Loader2, Mail, Lock, FileText } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -182,6 +182,15 @@ export default function LoginPage() {
               }
             </button>
           </form>
+
+          {/* Acceso público solo a certificados (sin usuario ni contraseña) */}
+          <Link
+            to="/certificados-publicos"
+            className="mt-3 w-full flex items-center justify-center gap-2.5 py-3.5 px-6 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm rounded-xl border border-slate-200 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <FileText className="h-4 w-4" />
+            Certificado de materiales y piezas
+          </Link>
         </div>
       </div>
     </div>

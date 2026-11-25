@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore, INTERNAL_ROLES } from './store/useAuthStore';
 import LoginPage from './pages/LoginPage';
+import CertificadosPublicosPage from './pages/CertificadosPublicosPage';
 import ConsultorPage from './pages/ConsultorPage';
 import AdminLayout from './layouts/AdminLayout';
 import CertificadosPage from './pages/CertificadosPage';
@@ -31,6 +32,9 @@ function App() {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+
+        {/* Acceso público (sin login): solo certificados de materiales y piezas */}
+        <Route path="/certificados-publicos" element={<CertificadosPublicosPage />} />
 
         {/* Consultor route */}
         <Route path="/" element={<RootRoute />} />

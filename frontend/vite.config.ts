@@ -44,6 +44,7 @@ export default defineConfig({
       '/certificados': { target: 'http://localhost:8000', changeOrigin: true },
       '/empresas':     { target: 'http://localhost:8000', changeOrigin: true },
       '/no-conformidades': { target: 'http://localhost:8000', changeOrigin: true },
+      '/publico':      { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
 })

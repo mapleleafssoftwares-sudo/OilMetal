@@ -28,3 +28,9 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Cliente SIN credenciales para las rutas públicas (no adjunta token ni
+// dispara logout ante errores): el acceso público nunca debe mezclarse con la sesión.
+export const publicApi = axios.create({
+  baseURL: apiBaseUrl,
+});
