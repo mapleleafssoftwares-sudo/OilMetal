@@ -110,7 +110,9 @@ def listar_certificados_publicos(
         .like("archivo_url", "https://%")
     )
     if term:
-        query = query.or_(f"nombre.ilike.*{term}*,colada.ilike.*{term}*")
+        # postgrest 0.13 (supabase 2.0.2) no trae .or_(): se arma el filtro OR a mano.
+        # `term` ya está sanitizado (sin , ( ) * % etc.), por lo que no puede alterar el filtro.
+        query.params = query.params.set("or", f"(nombre.ilike.*{term}*,colada.ilike.*{term}*)")
 
     try:
         res = query.order("nombre").range(start, end).execute()
