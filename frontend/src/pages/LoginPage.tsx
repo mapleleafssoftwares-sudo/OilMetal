@@ -186,11 +186,15 @@ export default function LoginPage() {
           {/* Acceso público solo a certificados (sin usuario ni contraseña) */}
           <Link
             to="/certificados-publicos"
-            className="mt-3 w-full flex items-center justify-center gap-2.5 py-3.5 px-6 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm rounded-xl border border-slate-200 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="mt-3 w-full flex items-center justify-center gap-2.5 py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
           >
             <FileText className="h-4 w-4" />
             Certificado de materiales y piezas
           </Link>
+          <p className="mt-2.5 text-xs text-slate-500 text-center leading-relaxed">
+            Para consultas relacionadas a certificaciones de materiales y piezas no es necesario
+            iniciar sesión: ingresá directamente con este botón y accedé a los certificados disponibles.
+          </p>
         </div>
       </div>
     </div>
